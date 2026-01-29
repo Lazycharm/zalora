@@ -1,0 +1,431 @@
+import { SignJWT, jwtVerify } from 'jose'
+import { cookies } from 'next/headers'
+import { supabaseAdmin } from './supabase'
+import bcrypt from 'bcryptjs'
+
+// Enums (replacing Prisma enums)
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  MANAGER = 'MANAGER',
+  USER = 'USER',
+}
+
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  BANNED = 'BANNED',
+  SUSPENDED = 'SUSPENDED',
+}
+
+export enum ShopStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+  CLOSED = 'CLOSED',
+}
+
+export enum ShopLevel {
+  BASIC = 'BASIC',
+  PREMIUM = 'PREMIUM',
+  ENTERPRISE = 'ENTERPRISE',
+}
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'zalora-secret-key'
+)
+
+export interface JWTPayload {
+  userId: string
+  email: string
+  role: UserRole
+  impersonatedBy?: string // For admin login-as-user feature
+  exp?: number
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12)
+}
+
+export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  return bcrypt.compare(password, hashedPassword)
+}
+
+export async function createToken(payload: Omit<JWTPayload, 'exp'>): Promise<string> {
+  return new SignJWT(payload as unknown as Record<string, unknown>)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('7d')
+    .setIssuedAt()
+    .sign(JWT_SECRET)
+}
+
+export async function verifyToken(token: string): Promise<JWTPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET)
+    return payload as unknown as JWTPayload
+  } catch {
+    return null
+  }
+}
+
+export async function getSession(): Promise<JWTPayload | null> {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('auth-token')?.value
+  if (!token) return null
+  return verifyToken(token)
+}
+
+export async function getCurrentUser() {
+  try {
+    // Check if Supabase is configured
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.warn('Supabase not configured, returning null user')
+      return null
+    }
+
+    const session = await getSession()
+    if (!session) return null
+
+    // Check if session is expired
+    if (session.exp && session.exp < Date.now() / 1000) {
+      return null
+    }
+
+    // Fetch user and shop in parallel
+    const [userResult, settingResult] = await Promise.all([
+      supabaseAdmin
+        .from('users')
+        .select(`
+          id,
+          email,
+          name,
+          avatar,
+          role,
+          status,
+          balance,
+          canSell,
+          shops (
+            id,
+            name,
+            slug,
+            status
+          )
+        `)
+        .eq('id', session.userId)
+        .single(),
+      supabaseAdmin
+        .from('settings')
+        .select('value')
+        .eq('key', 'user_selling_enabled')
+        .single(),
+    ])
+
+    if (userResult.error || !userResult.data) {
+      return null
+    }
+
+    const user = userResult.data
+    if (user.status !== UserStatus.ACTIVE) return null
+
+    const userSellingEnabled = settingResult.data?.value === 'true'
+    const shop = Array.isArray(user.shops) && user.shops.length > 0 ? user.shops[0] : null
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatar: user.avatar,
+      role: user.role as UserRole,
+      status: user.status as UserStatus,
+      balance: Number(user.balance || 0),
+      canSell: user.canSell && userSellingEnabled,
+      shop: shop ? {
+        id: shop.id,
+        name: shop.name,
+        slug: shop.slug,
+        status: shop.status,
+      } : null,
+      isImpersonating: !!session.impersonatedBy,
+      impersonatedBy: session.impersonatedBy,
+    }
+  } catch (error) {
+    console.error('getCurrentUser error:', error)
+    return null
+  }
+}
+
+export async function login(email: string, password: string) {
+  try {
+    // Check if Supabase is configured
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[LOGIN] Supabase not configured')
+      return { success: false, error: 'Database connection error. Please contact support.' }
+    }
+
+    // Fetch user by email
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, password, name, role, status')
+      .eq('email', email)
+      .single()
+
+    if (userError || !user) {
+      // Check if any users exist
+      const { count } = await supabaseAdmin
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+      
+      if (count === 0) {
+        console.warn('[LOGIN] No users found in database. Database may need to be seeded.')
+        return { 
+          success: false, 
+          error: 'No users found. Please seed the database.' 
+        }
+      }
+      return { success: false, error: 'Invalid email or password' }
+    }
+
+    if (user.status === UserStatus.BANNED) {
+      return { success: false, error: 'Your account has been banned' }
+    }
+
+    if (user.status === UserStatus.SUSPENDED) {
+      return { success: false, error: 'Your account has been suspended' }
+    }
+
+    const isValidPassword = await verifyPassword(password, user.password)
+    if (!isValidPassword) {
+      return { success: false, error: 'Invalid email or password' }
+    }
+
+    // Update last login
+    await supabaseAdmin
+      .from('users')
+      .update({ lastLoginAt: new Date().toISOString() })
+      .eq('id', user.id)
+
+    const token = await createToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role as UserRole,
+    })
+
+    // Set cookie
+    try {
+      const cookieStore = await cookies()
+      cookieStore.set('auth-token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      })
+    } catch (error) {
+      console.error('Error setting cookie:', error)
+      return { success: false, error: 'Failed to set authentication cookie' }
+    }
+
+    // Create session record
+    await supabaseAdmin
+      .from('sessions')
+      .insert({
+        userId: user.id,
+        token,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+
+    return { 
+      success: true, 
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role as UserRole,
+      }
+    }
+  } catch (error) {
+    console.error('Login function error:', error)
+    return { success: false, error: 'Database connection error. Please try again.' }
+  }
+}
+
+export async function loginAsUser(adminId: string, targetUserId: string) {
+  // Verify admin
+  const { data: admin } = await supabaseAdmin
+    .from('users')
+    .select('role, status')
+    .eq('id', adminId)
+    .single()
+
+  if (!admin || (admin.role !== UserRole.ADMIN && admin.role !== UserRole.MANAGER)) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  // Get target user
+  const { data: targetUser } = await supabaseAdmin
+    .from('users')
+    .select('id, email, name, role, status')
+    .eq('id', targetUserId)
+    .single()
+
+  if (!targetUser) {
+    return { success: false, error: 'User not found' }
+  }
+
+  // Create token with impersonation flag
+  const token = await createToken({
+    userId: targetUser.id,
+    email: targetUser.email,
+    role: targetUser.role as UserRole,
+    impersonatedBy: adminId,
+  })
+
+  const cookieStore = await cookies()
+  cookieStore.set('auth-token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 2, // 2 hours for impersonation
+    path: '/',
+  })
+
+  return { 
+    success: true, 
+    user: targetUser,
+  }
+}
+
+export async function logout() {
+  const session = await getSession()
+  
+  if (session) {
+    // If impersonating, return to admin
+    if (session.impersonatedBy) {
+      const { data: admin } = await supabaseAdmin
+        .from('users')
+        .select('id, email, role')
+        .eq('id', session.impersonatedBy)
+        .single()
+
+      if (admin) {
+        const token = await createToken({
+          userId: admin.id,
+          email: admin.email,
+          role: admin.role as UserRole,
+        })
+
+        const cookieStore = await cookies()
+        cookieStore.set('auth-token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
+        })
+
+        return { success: true, returnedToAdmin: true }
+      }
+    }
+
+    // Delete session from database
+    await supabaseAdmin
+      .from('sessions')
+      .delete()
+      .eq('userId', session.userId)
+  }
+
+  const cookieStore = await cookies()
+  cookieStore.delete('auth-token')
+  
+  return { success: true }
+}
+
+export async function register(data: {
+  email: string
+  password: string
+  name: string
+}) {
+  try {
+    // Check if Supabase is configured
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[REGISTER] Supabase not configured')
+      return { success: false, error: 'Database connection error. Please contact support.' }
+    }
+
+    // Check if user exists
+    const { data: existingUser } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', data.email)
+      .single()
+
+    if (existingUser) {
+      return { success: false, error: 'Email already registered' }
+    }
+
+    const hashedPassword = await hashPassword(data.password)
+
+    // Create user
+    const { data: user, error: createError } = await supabaseAdmin
+      .from('users')
+      .insert({
+        email: data.email,
+        password: hashedPassword,
+        name: data.name,
+        role: UserRole.USER,
+        status: UserStatus.ACTIVE,
+      })
+      .select('id, email, name, role')
+      .single()
+
+    if (createError || !user) {
+      console.error('[REGISTER] Database create error:', createError)
+      return { 
+        success: false, 
+        error: `Registration failed: ${createError?.message || 'Unknown error'}` 
+      }
+    }
+
+    // Auto login after registration
+    const token = await createToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role as UserRole,
+    })
+
+    const cookieStore = await cookies()
+    cookieStore.set('auth-token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    })
+
+    return { success: true, user }
+  } catch (error) {
+    console.error('[REGISTER] Unexpected error:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Registration failed. Please try again.' 
+    }
+  }
+}
+
+export function requireAuth(allowedRoles?: UserRole[]) {
+  return async function () {
+    const session = await getSession()
+    
+    if (!session) {
+      return { authorized: false, error: 'Not authenticated' }
+    }
+
+    if (allowedRoles && !allowedRoles.includes(session.role)) {
+      return { authorized: false, error: 'Insufficient permissions' }
+    }
+
+    return { authorized: true, session }
+  }
+}
+
+export const requireAdmin = requireAuth([UserRole.ADMIN])
+export const requireManager = requireAuth([UserRole.ADMIN, UserRole.MANAGER])

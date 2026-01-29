@@ -1,0 +1,153 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase'
+import { getSession } from '@/lib/auth'
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { subject, message, email, priority = 'MEDIUM' } = body
+
+    if (!subject || !message) {
+      return NextResponse.json(
+        { error: 'Subject and message are required' },
+        { status: 400 }
+      )
+    }
+
+    // Try to get authenticated user
+    const session = await getSession()
+    let userId = session?.userId || null
+    let userEmail = email
+
+    // If no authenticated user, require email
+    if (!userId && !userEmail) {
+      return NextResponse.json(
+        { error: 'Email is required for guest tickets' },
+        { status: 400 }
+      )
+    }
+
+    // If authenticated, get user email
+    if (userId) {
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('email')
+        .eq('id', userId)
+        .single()
+
+      if (user) {
+        userEmail = user.email
+      }
+    }
+
+    // Generate ticket number
+    const ticketNumber = `TKT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`
+
+    // Create support ticket
+    const { data: ticket, error: ticketError } = await supabaseAdmin
+      .from('support_tickets')
+      .insert({
+        ticketNumber,
+        userId,
+        subject,
+        priority,
+        status: 'OPEN',
+      })
+      .select()
+      .single()
+
+    if (ticketError || !ticket) {
+      throw ticketError || new Error('Failed to create ticket')
+    }
+
+    // Create initial message
+    const { error: messageError } = await supabaseAdmin
+      .from('ticket_messages')
+      .insert({
+        ticketId: ticket.id,
+        message,
+        senderEmail: userEmail,
+        isFromAdmin: false,
+      })
+
+    if (messageError) {
+      // Rollback ticket if message creation fails
+      await supabaseAdmin.from('support_tickets').delete().eq('id', ticket.id)
+      throw messageError
+    }
+
+    return NextResponse.json({
+      success: true,
+      ticket: {
+        id: ticket.id,
+        ticketNumber: ticket.ticketNumber,
+        subject: ticket.subject,
+        status: ticket.status,
+      },
+    })
+  } catch (error) {
+    console.error('Error creating support ticket:', error)
+    return NextResponse.json(
+      { error: 'Failed to create support ticket' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getSession()
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { userId, role } = session
+
+    // Build query based on role
+    let query = supabaseAdmin
+      .from('support_tickets')
+      .select(`
+        *,
+        user:users!support_tickets_userId_fkey (
+          name,
+          email
+        ),
+        messages:ticket_messages (
+          *
+        )
+      `)
+
+    // Admins can see all tickets, users see only their own
+    if (role !== 'ADMIN' && role !== 'MANAGER') {
+      query = query.eq('userId', userId)
+    }
+
+    const { data: tickets, error } = await query.order('createdAt', { ascending: false })
+
+    if (error) {
+      throw error
+    }
+
+    // Format tickets - get latest message for each
+    const formattedTickets = (tickets || []).map((ticket: any) => {
+      const messages = ticket.messages || []
+      const latestMessage = messages.length > 0 
+        ? messages.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+        : null
+
+      return {
+        ...ticket,
+        messages: latestMessage ? [latestMessage] : [],
+      }
+    })
+
+    return NextResponse.json({ tickets: formattedTickets })
+  } catch (error) {
+    console.error('Error fetching tickets:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch tickets' },
+      { status: 500 }
+    )
+  }
+}

@@ -1,0 +1,337 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Icon } from '@iconify/react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import toast from 'react-hot-toast'
+
+interface SettingsFormProps {
+  initialSettings: Record<string, string>
+}
+
+export function SettingsForm({ initialSettings }: SettingsFormProps) {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [settings, setSettings] = useState(initialSettings)
+
+  const updateSetting = (key: string, value: string) => {
+    setSettings((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleSave = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to save settings')
+      }
+
+      toast.success('Settings saved successfully')
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save settings')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Tabs defaultValue="general" className="space-y-6">
+      <TabsList className="grid w-full grid-cols-4">
+        <TabsTrigger value="general">General</TabsTrigger>
+        <TabsTrigger value="payments">Payments</TabsTrigger>
+        <TabsTrigger value="shipping">Shipping</TabsTrigger>
+        <TabsTrigger value="features">Features</TabsTrigger>
+      </TabsList>
+
+      {/* General Settings */}
+      <TabsContent value="general">
+        <Card>
+          <CardHeader>
+            <CardTitle>General Settings</CardTitle>
+            <CardDescription>Basic store configuration</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="site_name">Site Name</Label>
+              <Input
+                id="site_name"
+                value={settings.site_name || ''}
+                onChange={(e) => updateSetting('site_name', e.target.value)}
+                placeholder="ZALORA"
+              />
+              <p className="text-xs text-muted-foreground">
+                This will appear in the browser tab and throughout the site
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="logo_url">Logo URL</Label>
+              <Input
+                id="logo_url"
+                value={settings.logo_url || ''}
+                onChange={(e) => updateSetting('logo_url', e.target.value)}
+                placeholder="/images/logo.png"
+              />
+              <p className="text-xs text-muted-foreground">
+                Path to logo image (e.g., /images/logo.png or full URL)
+              </p>
+              {settings.logo_url && (
+                <div className="mt-2 p-4 border border-border rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-2">Logo Preview:</p>
+                  <img
+                    src={settings.logo_url}
+                    alt="Logo"
+                    className="h-12 object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="site_description">Site Description</Label>
+              <Input
+                id="site_description"
+                value={settings.site_description || ''}
+                onChange={(e) => updateSetting('site_description', e.target.value)}
+                placeholder="Premium Fashion & Lifestyle Store"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="currency">Currency</Label>
+              <Input
+                id="currency"
+                value={settings.currency || 'USD'}
+                onChange={(e) => updateSetting('currency', e.target.value)}
+                placeholder="USD"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Maintenance Mode</Label>
+                <p className="text-xs text-muted-foreground">
+                  Enable to show maintenance page to visitors
+                </p>
+              </div>
+              <Switch
+                checked={settings.maintenance_mode === 'true'}
+                onCheckedChange={(checked) =>
+                  updateSetting('maintenance_mode', checked.toString())
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Payment Settings */}
+      <TabsContent value="payments">
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment Settings</CardTitle>
+            <CardDescription>Configure payment methods and crypto wallets</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Crypto Settings */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2">
+                    <Icon icon="cryptocurrency:usdt" className="size-4" />
+                    Crypto Payments
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Accept USDT, BTC, and ETH payments
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.crypto_enabled === 'true'}
+                  onCheckedChange={(checked) =>
+                    updateSetting('crypto_enabled', checked.toString())
+                  }
+                />
+              </div>
+
+              {settings.crypto_enabled === 'true' && (
+                <div className="space-y-4 pl-4 border-l-2 border-primary/20">
+                  <div className="space-y-2">
+                    <Label htmlFor="usdt_trc20">USDT (TRC20) Wallet Address</Label>
+                    <Input
+                      id="usdt_trc20"
+                      value={settings.usdt_trc20_address || ''}
+                      onChange={(e) => updateSetting('usdt_trc20_address', e.target.value)}
+                      placeholder="TRC20 wallet address"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="usdt_erc20">USDT (ERC20) Wallet Address</Label>
+                    <Input
+                      id="usdt_erc20"
+                      value={settings.usdt_erc20_address || ''}
+                      onChange={(e) => updateSetting('usdt_erc20_address', e.target.value)}
+                      placeholder="ERC20 wallet address"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="btc">Bitcoin (BTC) Wallet Address</Label>
+                    <Input
+                      id="btc"
+                      value={settings.btc_address || ''}
+                      onChange={(e) => updateSetting('btc_address', e.target.value)}
+                      placeholder="BTC wallet address"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="eth">Ethereum (ETH) Wallet Address</Label>
+                    <Input
+                      id="eth"
+                      value={settings.eth_address || ''}
+                      onChange={(e) => updateSetting('eth_address', e.target.value)}
+                      placeholder="ETH wallet address"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Fiat Settings */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2">
+                    <Icon icon="solar:money-bag-bold" className="size-4" />
+                    Cash on Delivery
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Accept payment on delivery
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.cod_enabled === 'true'}
+                  onCheckedChange={(checked) =>
+                    updateSetting('cod_enabled', checked.toString())
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2">
+                    <Icon icon="solar:bank-bold" className="size-4" />
+                    Bank Transfer
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Accept direct bank transfers
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.bank_transfer_enabled === 'true'}
+                  onCheckedChange={(checked) =>
+                    updateSetting('bank_transfer_enabled', checked.toString())
+                  }
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Shipping Settings */}
+      <TabsContent value="shipping">
+        <Card>
+          <CardHeader>
+            <CardTitle>Shipping & Tax Settings</CardTitle>
+            <CardDescription>Configure shipping fees and tax rates</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="shipping_fee">Default Shipping Fee ($)</Label>
+              <Input
+                id="shipping_fee"
+                type="number"
+                value={settings.shipping_fee || '5'}
+                onChange={(e) => updateSetting('shipping_fee', e.target.value)}
+                placeholder="5.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="free_shipping">Free Shipping Threshold ($)</Label>
+              <Input
+                id="free_shipping"
+                type="number"
+                value={settings.free_shipping_threshold || '50'}
+                onChange={(e) => updateSetting('free_shipping_threshold', e.target.value)}
+                placeholder="50.00"
+              />
+              <p className="text-xs text-muted-foreground">
+                Orders above this amount get free shipping. Set to 0 to disable.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tax_rate">Tax Rate (%)</Label>
+              <Input
+                id="tax_rate"
+                type="number"
+                value={settings.tax_rate || '0'}
+                onChange={(e) => updateSetting('tax_rate', e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                Tax percentage applied to all orders. Set to 0 to disable.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Feature Toggles */}
+      <TabsContent value="features">
+        <Card>
+          <CardHeader>
+            <CardTitle>Feature Settings</CardTitle>
+            <CardDescription>Enable or disable platform features</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="flex items-center gap-2">
+                  <Icon icon="solar:shop-bold" className="size-4" />
+                  User Selling
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Allow users to become sellers and create shops
+                </p>
+              </div>
+              <Switch
+                checked={settings.user_selling_enabled === 'true'}
+                onCheckedChange={(checked) =>
+                  updateSetting('user_selling_enabled', checked.toString())
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <Button onClick={handleSave} loading={loading} size="lg">
+          <Icon icon="solar:diskette-bold" className="mr-2 size-4" />
+          Save Settings
+        </Button>
+      </div>
+    </Tabs>
+  )
+}

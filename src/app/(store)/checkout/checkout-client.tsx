@@ -1,0 +1,684 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import Image from 'next/image'
+import { Icon } from '@iconify/react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Textarea } from '@/components/ui/textarea'
+import { useCartStore, useUserStore } from '@/lib/store'
+import { formatPrice } from '@/lib/utils'
+import { useLanguage } from '@/contexts/language-context'
+import toast from 'react-hot-toast'
+
+interface CryptoAddress {
+  id: string
+  currency: string
+  address: string
+  network: string | null
+  label: string | null
+  qrCode: string | null
+}
+
+export function CheckoutClient() {
+  const router = useRouter()
+  const { t } = useLanguage()
+  const { items, getTotal, clearCart } = useCartStore()
+  const user = useUserStore((state) => state.user)
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [step, setStep] = useState<'address' | 'payment'>('address')
+  
+  // Address form
+  const [addressData, setAddressData] = useState({
+    fullName: user?.name || '',
+    email: user?.email || '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: '',
+    notes: '',
+  })
+
+  // Payment method
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'crypto' | 'cod'>('card')
+
+  // Card details
+  const [cardData, setCardData] = useState({
+    cardNumber: '',
+    cardName: '',
+    expiryDate: '',
+    cvv: '',
+  })
+
+  // Crypto wallet
+  const [cryptoType, setCryptoType] = useState<string>('')
+  const [cryptoAddresses, setCryptoAddresses] = useState<CryptoAddress[]>([])
+  const [selectedCryptoAddress, setSelectedCryptoAddress] = useState<CryptoAddress | null>(null)
+  const [loadingCryptoAddresses, setLoadingCryptoAddresses] = useState(false)
+
+  const subtotal = getTotal()
+  const shipping = 0 // Free shipping
+  const tax = subtotal * 0.1 // 10% tax
+  const total = subtotal + shipping + tax
+
+  // Fetch crypto addresses when crypto payment is selected
+  useEffect(() => {
+    if (paymentMethod === 'crypto' && cryptoAddresses.length === 0) {
+      fetchCryptoAddresses()
+    }
+  }, [paymentMethod])
+
+  // Update selected address when crypto type changes
+  useEffect(() => {
+    if (cryptoType && cryptoAddresses.length > 0) {
+      const address = cryptoAddresses.find(addr => 
+        addr.currency === cryptoType || 
+        addr.currency.startsWith(cryptoType)
+      )
+      setSelectedCryptoAddress(address || null)
+    }
+  }, [cryptoType, cryptoAddresses])
+
+  const fetchCryptoAddresses = async () => {
+    setLoadingCryptoAddresses(true)
+    try {
+      const response = await fetch('/api/crypto-addresses')
+      const data = await response.json()
+      setCryptoAddresses(data.addresses || [])
+      
+      // Auto-select first USDT address if available
+      const usdtAddress = data.addresses.find((addr: CryptoAddress) => addr.currency.includes('USDT'))
+      if (usdtAddress) {
+        setCryptoType(usdtAddress.currency)
+        setSelectedCryptoAddress(usdtAddress)
+      }
+    } catch (error) {
+      console.error('Failed to fetch crypto addresses:', error)
+      toast.error('Failed to load payment addresses')
+    } finally {
+      setLoadingCryptoAddresses(false)
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success('Address copied to clipboard!')
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <div className="flex-1 flex flex-col items-center justify-center p-8">
+          <Icon icon="solar:cart-large-linear" className="size-24 text-muted-foreground/30 mb-4" />
+          <h2 className="text-xl font-bold mb-2">{t('emptyCart')}</h2>
+          <p className="text-muted-foreground text-center mb-6">
+            Please add items to cart before checkout
+          </p>
+          <Button asChild>
+            <Link href="/products">
+              <Icon icon="solar:bag-3-bold" className="mr-2 size-4" />
+              {t('continueShopping')}
+            </Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const handlePlaceOrder = async () => {
+    // Validate address
+    if (!addressData.fullName || !addressData.email || !addressData.phone || !addressData.address || !addressData.city) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    // Validate payment method
+    if (paymentMethod === 'card') {
+      if (!cardData.cardNumber || !cardData.cardName || !cardData.expiryDate || !cardData.cvv) {
+        toast.error('Please enter card details')
+        return
+      }
+    } else if (paymentMethod === 'crypto') {
+      if (!selectedCryptoAddress) {
+        toast.error('Please select a cryptocurrency')
+        return
+      }
+    }
+
+    setIsLoading(true)
+
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: items.map(item => ({
+            productId: item.productId || item.id,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          address: addressData,
+          paymentMethod,
+          cryptoType: paymentMethod === 'crypto' ? cryptoType : undefined,
+          cryptoAddressId: paymentMethod === 'crypto' ? selectedCryptoAddress?.id : undefined,
+          total,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast.success('Order placed successfully!')
+        clearCart()
+        router.push(`/account/orders/${data.orderId}`)
+      } else {
+        const error = await response.json()
+        toast.error(error.message || 'Failed to place order')
+      }
+    } catch (error) {
+      console.error('Checkout error:', error)
+      toast.error('An error occurred. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background pb-20 lg:pb-0">
+      {/* Mobile Header */}
+      <div className="bg-primary px-4 pt-4 pb-6 lg:hidden">
+        <div className="flex items-center justify-between">
+          <Link href="/cart" className="text-white">
+            <Icon icon="solar:arrow-left-linear" className="size-6" />
+          </Link>
+          <h1 className="text-white text-lg font-bold font-heading">{t('checkout')}</h1>
+          <div className="size-6" />
+        </div>
+      </div>
+
+      {/* Desktop Header */}
+      <div className="hidden lg:block container mx-auto px-4 py-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Link href="/cart" className="text-muted-foreground hover:text-foreground">
+            <Icon icon="solar:arrow-left-linear" className="size-6" />
+          </Link>
+          <h1 className="text-2xl font-bold font-heading">{t('checkout')}</h1>
+        </div>
+      </div>
+
+      <div className="flex-1 px-4 lg:container lg:mx-auto">
+        <div className="lg:grid lg:grid-cols-3 lg:gap-8">
+          {/* Checkout Form */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Progress Steps */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className={`flex items-center gap-2 ${step === 'address' ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`size-8 rounded-full flex items-center justify-center font-bold ${step === 'address' ? 'bg-primary text-white' : 'bg-muted'}`}>
+                  1
+                </div>
+                <span className="text-sm font-medium">{t('addresses')}</span>
+              </div>
+              <div className="flex-1 h-0.5 bg-border" />
+              <div className={`flex items-center gap-2 ${step === 'payment' ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`size-8 rounded-full flex items-center justify-center font-bold ${step === 'payment' ? 'bg-primary text-white' : 'bg-muted'}`}>
+                  2
+                </div>
+                <span className="text-sm font-medium">Payment</span>
+              </div>
+            </div>
+
+            {/* Address Form */}
+            {step === 'address' && (
+              <div className="bg-card rounded-xl p-6 border border-border/50">
+                <h3 className="text-lg font-bold mb-4">Delivery {t('addresses')}</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="fullName">Full Name *</Label>
+                    <Input
+                      id="fullName"
+                      value={addressData.fullName}
+                      onChange={(e) => setAddressData({ ...addressData, fullName: e.target.value })}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={addressData.email}
+                      onChange={(e) => setAddressData({ ...addressData, email: e.target.value })}
+                      placeholder="john@example.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input
+                      id="phone"
+                      value={addressData.phone}
+                      onChange={(e) => setAddressData({ ...addressData, phone: e.target.value })}
+                      placeholder="+1 234 567 8900"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="address">Address *</Label>
+                    <Input
+                      id="address"
+                      value={addressData.address}
+                      onChange={(e) => setAddressData({ ...addressData, address: e.target.value })}
+                      placeholder="Street address, P.O. box"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="city">City *</Label>
+                    <Input
+                      id="city"
+                      value={addressData.city}
+                      onChange={(e) => setAddressData({ ...addressData, city: e.target.value })}
+                      placeholder="New York"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State / Province</Label>
+                    <Input
+                      id="state"
+                      value={addressData.state}
+                      onChange={(e) => setAddressData({ ...addressData, state: e.target.value })}
+                      placeholder="NY"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="zipCode">ZIP / Postal Code</Label>
+                    <Input
+                      id="zipCode"
+                      value={addressData.zipCode}
+                      onChange={(e) => setAddressData({ ...addressData, zipCode: e.target.value })}
+                      placeholder="10001"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="country">Country</Label>
+                    <Input
+                      id="country"
+                      value={addressData.country}
+                      onChange={(e) => setAddressData({ ...addressData, country: e.target.value })}
+                      placeholder="United States"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="notes">Delivery Notes (Optional)</Label>
+                    <Textarea
+                      id="notes"
+                      value={addressData.notes}
+                      onChange={(e) => setAddressData({ ...addressData, notes: e.target.value })}
+                      placeholder="Any special instructions for delivery"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <Button onClick={() => setStep('payment')} className="w-full mt-6" size="lg">
+                  Continue to Payment
+                </Button>
+              </div>
+            )}
+
+            {/* Payment Form */}
+            {step === 'payment' && (
+              <div className="bg-card rounded-xl p-6 border border-border/50">
+                <h3 className="text-lg font-bold mb-4">Payment Method</h3>
+                
+                <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)}>
+                  <div className="space-y-3">
+                    {/* Credit Card */}
+                    <div className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50">
+                      <RadioGroupItem value="card" id="card" />
+                      <Label htmlFor="card" className="flex-1 cursor-pointer flex items-center gap-2">
+                        <Icon icon="solar:card-bold" className="size-5" />
+                        Credit / Debit Card
+                      </Label>
+                    </div>
+
+                    {/* Crypto */}
+                    <div className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50">
+                      <RadioGroupItem value="crypto" id="crypto" />
+                      <Label htmlFor="crypto" className="flex-1 cursor-pointer flex items-center gap-2">
+                        <Icon icon="solar:bitcoin-linear" className="size-5" />
+                        Cryptocurrency (BTC, ETH, USDT)
+                      </Label>
+                    </div>
+
+                    {/* Cash on Delivery */}
+                    <div className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50">
+                      <RadioGroupItem value="cod" id="cod" />
+                      <Label htmlFor="cod" className="flex-1 cursor-pointer flex items-center gap-2">
+                        <Icon icon="solar:wallet-money-bold" className="size-5" />
+                        Cash on Delivery
+                      </Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+
+                {/* Card Payment Details */}
+                {paymentMethod === 'card' && (
+                  <div className="mt-6 space-y-4">
+                    <div>
+                      <Label htmlFor="cardNumber">Card Number *</Label>
+                      <Input
+                        id="cardNumber"
+                        value={cardData.cardNumber}
+                        onChange={(e) => setCardData({ ...cardData, cardNumber: e.target.value })}
+                        placeholder="1234 5678 9012 3456"
+                        maxLength={19}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cardName">Cardholder Name *</Label>
+                      <Input
+                        id="cardName"
+                        value={cardData.cardName}
+                        onChange={(e) => setCardData({ ...cardData, cardName: e.target.value })}
+                        placeholder="JOHN DOE"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="expiryDate">Expiry Date *</Label>
+                        <Input
+                          id="expiryDate"
+                          value={cardData.expiryDate}
+                          onChange={(e) => setCardData({ ...cardData, expiryDate: e.target.value })}
+                          placeholder="MM/YY"
+                          maxLength={5}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="cvv">CVV *</Label>
+                        <Input
+                          id="cvv"
+                          value={cardData.cvv}
+                          onChange={(e) => setCardData({ ...cardData, cvv: e.target.value })}
+                          placeholder="123"
+                          maxLength={4}
+                          type="password"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Crypto Payment Details */}
+                {paymentMethod === 'crypto' && (
+                  <div className="mt-6 space-y-6">
+                    {loadingCryptoAddresses ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Icon icon="solar:refresh-circle-linear" className="size-8 animate-spin text-primary" />
+                      </div>
+                    ) : cryptoAddresses.length === 0 ? (
+                      <div className="p-6 bg-destructive/10 border border-destructive/20 rounded-lg text-center">
+                        <Icon icon="solar:info-circle-bold" className="size-12 mx-auto text-destructive mb-3" />
+                        <p className="text-sm text-destructive font-medium">
+                          Cryptocurrency payment is currently unavailable. Please select another payment method.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Select Cryptocurrency */}
+                        <div>
+                          <Label className="text-base font-semibold mb-3 block">Select Cryptocurrency</Label>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {cryptoAddresses.map((addr) => (
+                              <button
+                                key={addr.id}
+                                type="button"
+                                onClick={() => {
+                                  setCryptoType(addr.currency)
+                                  setSelectedCryptoAddress(addr)
+                                }}
+                                className={`
+                                  p-4 rounded-lg border-2 transition-all text-center
+                                  ${cryptoType === addr.currency 
+                                    ? 'border-primary bg-primary/5 shadow-md' 
+                                    : 'border-border hover:border-primary/50'}
+                                `}
+                              >
+                                <Icon 
+                                  icon={
+                                    addr.currency.includes('USDT') ? 'cryptocurrency:usdt' :
+                                    addr.currency === 'BTC' ? 'cryptocurrency:btc' :
+                                    addr.currency === 'ETH' ? 'cryptocurrency:eth' :
+                                    'solar:wallet-bold'
+                                  } 
+                                  className="size-8 mx-auto mb-2"
+                                />
+                                <p className="font-bold text-sm">{addr.currency.replace('_', ' ')}</p>
+                                {addr.network && (
+                                  <p className="text-xs text-muted-foreground mt-1">{addr.network}</p>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Payment Address Display */}
+                        {selectedCryptoAddress && (
+                          <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-6 border border-primary/20">
+                            <div className="flex items-start justify-between mb-4">
+                              <div>
+                                <h4 className="font-bold text-lg flex items-center gap-2">
+                                  <Icon icon="solar:shield-check-bold" className="size-5 text-primary" />
+                                  Send Payment To
+                                </h4>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {selectedCryptoAddress.label || `${selectedCryptoAddress.currency} Wallet`}
+                                </p>
+                              </div>
+                              {selectedCryptoAddress.network && (
+                                <span className="px-3 py-1 bg-primary/20 text-primary text-xs font-bold rounded-full">
+                                  {selectedCryptoAddress.network}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* QR Code */}
+                            {selectedCryptoAddress.qrCode && (
+                              <div className="flex justify-center mb-6">
+                                <div className="bg-white p-4 rounded-lg shadow-md">
+                                  <img
+                                    src={selectedCryptoAddress.qrCode}
+                                    alt="QR Code"
+                                    className="w-48 h-48 object-contain"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Wallet Address */}
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Wallet Address</Label>
+                              <div className="flex gap-2">
+                                <div className="flex-1 bg-white rounded-lg p-3 border border-border">
+                                  <p className="text-xs md:text-sm font-mono break-all text-foreground">
+                                    {selectedCryptoAddress.address}
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="default"
+                                  size="lg"
+                                  onClick={() => copyToClipboard(selectedCryptoAddress.address)}
+                                  className="flex-shrink-0"
+                                >
+                                  <Icon icon="solar:copy-bold" className="size-5" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Amount to Send */}
+                            <div className="mt-6 p-4 bg-white rounded-lg border-2 border-primary/30">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-muted-foreground">Amount to Send</span>
+                                <div className="text-right">
+                                  <p className="text-2xl font-bold text-primary">${total.toFixed(2)}</p>
+                                  <p className="text-xs text-muted-foreground">USD Equivalent</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Instructions */}
+                            <div className="mt-6 space-y-3">
+                              <div className="flex items-start gap-3 text-sm">
+                                <div className="size-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <span className="text-xs font-bold text-primary">1</span>
+                                </div>
+                                <p className="text-muted-foreground">
+                                  Copy the wallet address above or scan the QR code
+                                </p>
+                              </div>
+                              <div className="flex items-start gap-3 text-sm">
+                                <div className="size-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <span className="text-xs font-bold text-primary">2</span>
+                                </div>
+                                <p className="text-muted-foreground">
+                                  Send <strong className="text-foreground">${total.toFixed(2)} USD</strong> worth of {selectedCryptoAddress.currency} to the address
+                                </p>
+                              </div>
+                              <div className="flex items-start gap-3 text-sm">
+                                <div className="size-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <span className="text-xs font-bold text-primary">3</span>
+                                </div>
+                                <p className="text-muted-foreground">
+                                  Click "Place Order" below after sending the payment
+                                </p>
+                              </div>
+                              <div className="flex items-start gap-3 text-sm">
+                                <div className="size-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <span className="text-xs font-bold text-primary">4</span>
+                                </div>
+                                <p className="text-muted-foreground">
+                                  Your order will be confirmed by admin once payment is verified (usually within 10-30 minutes)
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Warning */}
+                            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                              <div className="flex gap-3">
+                                <Icon icon="solar:danger-triangle-bold" className="size-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                                <div className="text-sm text-yellow-800">
+                                  <p className="font-semibold mb-1">Important:</p>
+                                  <ul className="space-y-1 list-disc list-inside">
+                                    <li>Make sure to send the exact amount to avoid delays</li>
+                                    <li>Double-check the wallet address before sending</li>
+                                    <li>Network fees may apply from your wallet</li>
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {!selectedCryptoAddress && (
+                          <div className="p-4 bg-muted rounded-lg text-center">
+                            <p className="text-sm text-muted-foreground">
+                              <Icon icon="solar:arrow-up-bold" className="inline size-4 mr-1" />
+                              Please select a cryptocurrency above to view payment details
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* COD Info */}
+                {paymentMethod === 'cod' && (
+                  <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      <Icon icon="solar:info-circle-bold" className="inline size-4 mr-1" />
+                      Pay with cash when your order is delivered to your doorstep.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 mt-6">
+                  <Button onClick={() => setStep('address')} variant="outline" className="flex-1" size="lg">
+                    {t('back')}
+                  </Button>
+                  <Button onClick={handlePlaceOrder} className="flex-1" size="lg" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Icon icon="solar:refresh-circle-linear" className="mr-2 size-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="solar:check-circle-bold" className="mr-2 size-4" />
+                        Place Order
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Order Summary */}
+          <div className="mt-6 lg:mt-0">
+            <div className="bg-card rounded-xl p-6 border border-border/50 sticky top-24">
+              <h3 className="text-lg font-bold mb-4">Order Summary</h3>
+              
+              {/* Items */}
+              <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                {items.map((item) => (
+                  <div key={item.id} className="flex gap-3">
+                    <div className="size-16 rounded bg-muted overflow-hidden flex-shrink-0">
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        width={64}
+                        height={64}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium line-clamp-2">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                      <p className="text-sm font-bold text-primary">{formatPrice(item.price * item.quantity)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-border pt-4 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{t('subtotal')}</span>
+                  <span>{formatPrice(subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{t('shipping')}</span>
+                  <span className="text-green-600">Free</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{t('tax')} (10%)</span>
+                  <span>{formatPrice(tax)}</span>
+                </div>
+                <div className="border-t border-border pt-3 flex justify-between font-bold text-lg">
+                  <span>{t('total')}</span>
+                  <span className="text-primary">{formatPrice(total)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
