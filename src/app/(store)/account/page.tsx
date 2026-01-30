@@ -6,7 +6,7 @@ import { AccountClient } from './account-client'
 export const dynamic = 'force-dynamic'
 
 async function getAccountData(userId: string) {
-  const [ordersCount, favoritesCount, userResult, settingResult, sellerOrdersCountResult] = await Promise.all([
+  const [ordersCount, favoritesCount, userResult, settingResult] = await Promise.all([
     supabaseAdmin.from('orders').select('*', { count: 'exact', head: true }).eq('userId', userId),
     supabaseAdmin.from('favorites').select('*', { count: 'exact', head: true }).eq('userId', userId),
     supabaseAdmin
