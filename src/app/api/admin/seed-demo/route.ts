@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+// Increase timeout for this route (Netlify/Vercel allow up to 26s for Hobby, 60s+ for Pro)
+export const maxDuration = 60
+export const dynamic = 'force-dynamic'
+
 // Hero slide image paths (public/slides)
 const SLIDE_IMAGES = [
   '/slides/046587279f41690ba8e987c3ce4857b1.jpg',
@@ -117,40 +121,37 @@ export async function GET(request: Request) {
     }
 
     // 1) Replace hero slides with slides from public/slides
-    // First, get all existing hero slide IDs and delete them
+    // Delete all existing hero slides in one batch
     const { data: existingSlides } = await supabaseAdmin
       .from('hero_slides')
       .select('id')
     
     if (existingSlides && existingSlides.length > 0) {
       const slideIds = existingSlides.map(s => s.id)
-      for (const id of slideIds) {
-        const { error } = await supabaseAdmin
-          .from('hero_slides')
-          .delete()
-          .eq('id', id)
-        if (error) {
-          console.warn(`Failed to delete hero slide ${id}:`, error.message)
-        }
-      }
+      await supabaseAdmin
+        .from('hero_slides')
+        .delete()
+        .in('id', slideIds)
     }
 
-    // Insert new hero slides
-    for (let i = 0; i < SLIDE_IMAGES.length; i++) {
-      const { error } = await supabaseAdmin.from('hero_slides').insert({
-        title: SLIDE_TITLES[i] ?? SLIDE_TITLES[0],
-        subtitle: SLIDE_SUBTITLES[i] ?? SLIDE_SUBTITLES[0],
-        image: SLIDE_IMAGES[i],
-        mobileImage: null,
-        ctaText: CTA_TEXTS[i] ?? pick(CTA_TEXTS),
-        ctaLink: CTA_LINKS[i] ?? pick(CTA_LINKS),
-        sortOrder: i,
-        isActive: true,
-      })
-      if (error) {
-        console.error(`Failed to insert hero slide ${i}:`, error.message)
-        throw new Error(`Failed to insert hero slide: ${error.message}`)
-      }
+    // Insert all hero slides in one batch
+    const heroSlidesData = SLIDE_IMAGES.map((image, i) => ({
+      title: SLIDE_TITLES[i] ?? SLIDE_TITLES[0],
+      subtitle: SLIDE_SUBTITLES[i] ?? SLIDE_SUBTITLES[0],
+      image,
+      mobileImage: null,
+      ctaText: CTA_TEXTS[i] ?? pick(CTA_TEXTS),
+      ctaLink: CTA_LINKS[i] ?? pick(CTA_LINKS),
+      sortOrder: i,
+      isActive: true,
+    }))
+
+    const { error: heroSlidesError } = await supabaseAdmin
+      .from('hero_slides')
+      .insert(heroSlidesData)
+
+    if (heroSlidesError) {
+      throw new Error(`Failed to insert hero slides: ${heroSlidesError.message}`)
     }
     const heroCount = SLIDE_IMAGES.length
 
@@ -175,54 +176,56 @@ export async function GET(request: Request) {
     }
 
     // 3) Delete existing demo products (slug starts with demo-)
-    // Use a more reliable deletion method - delete in batches
-    let hasMore = true
-    while (hasMore) {
-      const { data: existingDemoProducts } = await supabaseAdmin
-        .from('products')
-        .select('id')
-        .ilike('slug', 'demo-%')
-        .limit(100)
+    // Get all demo product IDs first
+    const { data: allDemoProducts } = await supabaseAdmin
+      .from('products')
+      .select('id')
+      .ilike('slug', 'demo-%')
+    
+    if (allDemoProducts && allDemoProducts.length > 0) {
+      const productIds = allDemoProducts.map(p => p.id)
       
-      if (!existingDemoProducts || existingDemoProducts.length === 0) {
-        hasMore = false
-        break
-      }
-
-      const productIds = existingDemoProducts.map(p => p.id)
-      
-      // Delete product images first
-      for (const productId of productIds) {
+      // Delete product images in batch (cascade should handle this, but being explicit)
+      if (productIds.length > 0) {
         await supabaseAdmin
           .from('product_images')
           .delete()
-          .eq('productId', productId)
+          .in('productId', productIds)
       }
       
       // Delete products in batch
-      const { error: deleteError } = await supabaseAdmin
+      await supabaseAdmin
         .from('products')
         .delete()
         .in('id', productIds)
-      
-      if (deleteError) {
-        console.warn(`Failed to delete demo products batch:`, deleteError.message)
-        // Try individual deletes as fallback
-        for (const productId of productIds) {
-          await supabaseAdmin
-            .from('products')
-            .delete()
-            .eq('id', productId)
-        }
-      }
-      
-      // If we got less than the limit, we're done
-      if (existingDemoProducts.length < 100) {
-        hasMore = false
-      }
     }
 
-    let productCount = 0
+    // 4) Create products in batches to avoid timeout
+    // Prepare all product data first
+    const productsToInsert: Array<{
+      shopId: null
+      categoryId: string
+      name: string
+      slug: string
+      description: string
+      shortDesc: string
+      price: number
+      comparePrice: number
+      costPrice: null
+      sku: string
+      barcode: null
+      stock: number
+      lowStockAlert: number
+      weight: null
+      status: 'PUBLISHED'
+      isFeatured: boolean
+      isPromoted: boolean
+      rating: number
+      totalReviews: number
+      totalSales: number
+      views: number
+      images: string[]
+    }> = []
 
     for (const category of categories) {
       const names = PRODUCT_NAMES_BY_CATEGORY[category.slug] ?? Array.from({ length: 10 }, (_, i) => `Demo Product ${i + 1}`)
@@ -234,16 +237,8 @@ export async function GET(request: Request) {
         const stock = 5 + Math.floor(Math.random() * 95)
         const numImages = 1 + Math.floor(Math.random() * 3)
         const urls = pickN(DEMO_IMAGE_PATHS, numImages)
-        const primaryUrl = urls[0]!
 
-        // Check if product already exists
-        const { data: existingProduct } = await supabaseAdmin
-          .from('products')
-          .select('id')
-          .eq('slug', slug)
-          .single()
-
-        const productData = {
+        productsToInsert.push({
           shopId: null,
           categoryId: category.id,
           name,
@@ -258,67 +253,70 @@ export async function GET(request: Request) {
           stock,
           lowStockAlert: 5,
           weight: null,
-          status: 'PUBLISHED' as const,
+          status: 'PUBLISHED',
           isFeatured: n <= 2,
           isPromoted: n === 1,
           rating: 3.5 + Math.random() * 1.5,
           totalReviews: Math.floor(Math.random() * 50),
           totalSales: Math.floor(Math.random() * 30),
           views: Math.floor(Math.random() * 200),
-        }
+          images: urls,
+        })
+      }
+    }
 
-        let product: { id: string } | null = null
-        let productError: any = null
+    // Insert products in batches of 20
+    const BATCH_SIZE = 20
+    let productCount = 0
+    const allImageInserts: Array<{ productId: string; url: string; alt: string; sortOrder: number; isPrimary: boolean }> = []
 
-        if (existingProduct?.id) {
-          // Update existing product
-          const { data, error } = await supabaseAdmin
-            .from('products')
-            .update(productData)
-            .eq('id', existingProduct.id)
-            .select('id')
-            .single()
-          product = data
-          productError = error
-        } else {
-          // Insert new product
-          const { data, error } = await supabaseAdmin
-            .from('products')
-            .insert(productData)
-            .select('id')
-            .single()
-          product = data
-          productError = error
-        }
+    for (let i = 0; i < productsToInsert.length; i += BATCH_SIZE) {
+      const batch = productsToInsert.slice(i, i + BATCH_SIZE)
+      const productsData = batch.map(({ images, ...product }) => product)
 
-        if (productError) {
-          console.error(`Failed to ${existingProduct ? 'update' : 'insert'} product ${slug}:`, productError.message)
-          throw new Error(`Failed to ${existingProduct ? 'update' : 'insert'} product ${slug}: ${productError.message}`)
-        }
+      const { data: insertedProducts, error: insertError } = await supabaseAdmin
+        .from('products')
+        .upsert(productsData, {
+          onConflict: 'slug',
+        })
+        .select('id, slug')
 
-        if (product?.id) {
-          productCount++
-          
-          // Delete existing images for this product first (in case it's an update)
-          await supabaseAdmin
-            .from('product_images')
-            .delete()
-            .eq('productId', product.id)
-          
-          // Insert new images
-          for (let i = 0; i < urls.length; i++) {
-            const { error: imageError } = await supabaseAdmin.from('product_images').insert({
-              productId: product.id,
-              url: urls[i],
-              alt: `${name} - view ${i + 1}`,
-              sortOrder: i,
-              isPrimary: i === 0,
-            })
-            if (imageError) {
-              console.warn(`Failed to insert image ${i} for product ${product.id}:`, imageError.message)
+      if (insertError) {
+        console.error(`Failed to insert products batch ${i / BATCH_SIZE + 1}:`, insertError.message)
+        throw new Error(`Failed to insert products batch: ${insertError.message}`)
+      }
+
+      if (insertedProducts) {
+        // Match inserted products with their images
+        for (const insertedProduct of insertedProducts) {
+          const productData = batch.find(p => p.slug === insertedProduct.slug)
+          if (productData) {
+            productCount++
+            for (let imgIdx = 0; imgIdx < productData.images.length; imgIdx++) {
+              allImageInserts.push({
+                productId: insertedProduct.id,
+                url: productData.images[imgIdx],
+                alt: `${productData.name} - view ${imgIdx + 1}`,
+                sortOrder: imgIdx,
+                isPrimary: imgIdx === 0,
+              })
             }
           }
         }
+      }
+    }
+
+    // Insert all images in batches
+    const IMAGE_BATCH_SIZE = 50
+    for (let i = 0; i < allImageInserts.length; i += IMAGE_BATCH_SIZE) {
+      const imageBatch = allImageInserts.slice(i, i + IMAGE_BATCH_SIZE)
+      const { error: imageError } = await supabaseAdmin
+        .from('product_images')
+        .insert(imageBatch)
+
+      if (imageError) {
+        console.warn(`Failed to insert images batch ${i / IMAGE_BATCH_SIZE + 1}:`, imageError.message)
+        // Continue even if some images fail
       }
     }
 
