@@ -84,7 +84,10 @@ export async function GET(request: Request) {
   try {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       return NextResponse.json(
-        { error: 'Database not configured' },
+        { 
+          error: 'Database not configured',
+          message: 'Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+        },
         { status: 503 }
       )
     }
@@ -96,10 +99,45 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized. Use ?key=<SEED_SECRET_KEY>' }, { status: 401 })
     }
 
+    // Verify tables exist by checking hero_slides table
+    const { error: tableCheckError } = await supabaseAdmin
+      .from('hero_slides')
+      .select('id')
+      .limit(1)
+    
+    if (tableCheckError) {
+      return NextResponse.json(
+        { 
+          error: 'Database tables not found',
+          message: `The hero_slides table does not exist. Please run the database schema first (supabase-schema.sql) in your Supabase SQL Editor. Error: ${tableCheckError.message}`,
+          hint: 'Go to Supabase Dashboard → SQL Editor → Run supabase-schema.sql'
+        },
+        { status: 500 }
+      )
+    }
+
     // 1) Replace hero slides with slides from public/slides
-    await supabaseAdmin.from('hero_slides').delete().neq('id', '')
+    // First, get all existing hero slide IDs and delete them
+    const { data: existingSlides } = await supabaseAdmin
+      .from('hero_slides')
+      .select('id')
+    
+    if (existingSlides && existingSlides.length > 0) {
+      const slideIds = existingSlides.map(s => s.id)
+      for (const id of slideIds) {
+        const { error } = await supabaseAdmin
+          .from('hero_slides')
+          .delete()
+          .eq('id', id)
+        if (error) {
+          console.warn(`Failed to delete hero slide ${id}:`, error.message)
+        }
+      }
+    }
+
+    // Insert new hero slides
     for (let i = 0; i < SLIDE_IMAGES.length; i++) {
-      await supabaseAdmin.from('hero_slides').insert({
+      const { error } = await supabaseAdmin.from('hero_slides').insert({
         title: SLIDE_TITLES[i] ?? SLIDE_TITLES[0],
         subtitle: SLIDE_SUBTITLES[i] ?? SLIDE_SUBTITLES[0],
         image: SLIDE_IMAGES[i],
@@ -109,15 +147,23 @@ export async function GET(request: Request) {
         sortOrder: i,
         isActive: true,
       })
+      if (error) {
+        console.error(`Failed to insert hero slide ${i}:`, error.message)
+        throw new Error(`Failed to insert hero slide: ${error.message}`)
+      }
     }
     const heroCount = SLIDE_IMAGES.length
 
     // 2) Categories
-    const { data: categories } = await supabaseAdmin
+    const { data: categories, error: categoriesError } = await supabaseAdmin
       .from('categories')
       .select('id, slug')
       .eq('isActive', true)
       .order('sortOrder')
+
+    if (categoriesError) {
+      throw new Error(`Failed to fetch categories: ${categoriesError.message}`)
+    }
 
     if (!categories?.length) {
       return NextResponse.json({
@@ -129,7 +175,32 @@ export async function GET(request: Request) {
     }
 
     // 3) Delete existing demo products (slug starts with demo-)
-    await supabaseAdmin.from('products').delete().like('slug', 'demo-%')
+    // First get all demo product IDs
+    const { data: existingDemoProducts } = await supabaseAdmin
+      .from('products')
+      .select('id')
+      .ilike('slug', 'demo-%')
+    
+    if (existingDemoProducts && existingDemoProducts.length > 0) {
+      const productIds = existingDemoProducts.map(p => p.id)
+      // Delete product images first (cascade should handle this, but being explicit)
+      for (const productId of productIds) {
+        await supabaseAdmin
+          .from('product_images')
+          .delete()
+          .eq('productId', productId)
+      }
+      // Then delete products
+      for (const productId of productIds) {
+        const { error } = await supabaseAdmin
+          .from('products')
+          .delete()
+          .eq('id', productId)
+        if (error) {
+          console.warn(`Failed to delete demo product ${productId}:`, error.message)
+        }
+      }
+    }
 
     let productCount = 0
 
@@ -145,7 +216,7 @@ export async function GET(request: Request) {
         const urls = pickN(DEMO_IMAGE_PATHS, numImages)
         const primaryUrl = urls[0]!
 
-        const { data: product } = await supabaseAdmin
+        const { data: product, error: productError } = await supabaseAdmin
           .from('products')
           .insert({
             shopId: null,
@@ -173,16 +244,24 @@ export async function GET(request: Request) {
           .select('id')
           .single()
 
+        if (productError) {
+          console.error(`Failed to insert product ${slug}:`, productError.message)
+          throw new Error(`Failed to insert product ${slug}: ${productError.message}`)
+        }
+
         if (product?.id) {
           productCount++
           for (let i = 0; i < urls.length; i++) {
-            await supabaseAdmin.from('product_images').insert({
+            const { error: imageError } = await supabaseAdmin.from('product_images').insert({
               productId: product.id,
               url: urls[i],
               alt: `${name} - view ${i + 1}`,
               sortOrder: i,
               isPrimary: i === 0,
             })
+            if (imageError) {
+              console.warn(`Failed to insert image ${i} for product ${product.id}:`, imageError.message)
+            }
           }
         }
       }
