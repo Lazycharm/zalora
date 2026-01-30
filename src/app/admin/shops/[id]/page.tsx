@@ -83,11 +83,13 @@ async function getShopData(shopId: string) {
     }
   }
 
-  // Get counts
-  const [productsCount, ordersCount] = await Promise.all([
+  // Get counts and KYC verification
+  const [productsCount, ordersCount, verificationResult] = await Promise.all([
     supabaseAdmin.from('products').select('*', { count: 'exact', head: true }).eq('shopId', shopId),
     supabaseAdmin.from('orders').select('*', { count: 'exact', head: true }).eq('shopId', shopId),
+    supabaseAdmin.from('shop_verifications').select('id, status, contactName, idNumber, reviewedAt, rejectionReason').eq('shopId', shopId).maybeSingle(),
   ])
+  const verification = verificationResult.data
 
   // Get followers count
   let followersCount = shop.followers || 0
@@ -150,6 +152,14 @@ async function getShopData(shopId: string) {
       userName: order.user?.name || 'Unknown',
       createdAt: order.createdAt,
     })),
+    verification: verification ? {
+      id: verification.id,
+      status: verification.status,
+      contactName: verification.contactName,
+      idNumber: verification.idNumber,
+      reviewedAt: verification.reviewedAt,
+      rejectionReason: verification.rejectionReason,
+    } : null,
   }
 }
 

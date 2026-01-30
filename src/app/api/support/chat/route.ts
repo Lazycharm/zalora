@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSession } from '@/lib/auth'
+import { supabaseAdmin } from '@/lib/supabase'
+import { notifyAdmins } from '@/lib/notifications'
 
 // Simple AI FAQ responses for the chat widget
 const faqResponses: Record<string, string> = {
@@ -41,14 +44,57 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Default response if no match found
+    // Default response if no match found - and send message to admin
+    let ticketNumber: string | null = null
     if (!response) {
       response = "I'm sorry, I don't have specific information about that. Would you like to speak with a human assistant?"
+      // Create support ticket so admin receives the message immediately
+      try {
+        const session = await getSession()
+        const userId = session?.userId || null
+        let userEmail = session?.email
+        if (userId && !userEmail) {
+          const { data: user } = await supabaseAdmin.from('users').select('email').eq('id', userId).single()
+          userEmail = user?.email
+        }
+        if (userId || userEmail) {
+          const ticketNum = `TKT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`
+          const { data: ticket, error: ticketError } = await supabaseAdmin
+            .from('support_tickets')
+            .insert({
+              ticketNumber: ticketNum,
+              userId,
+              subject: 'Live chat: ' + (message.length > 50 ? message.substring(0, 50) + '...' : message),
+              priority: 'MEDIUM',
+              status: 'OPEN',
+            })
+            .select()
+            .single()
+          if (!ticketError && ticket) {
+            await supabaseAdmin.from('ticket_messages').insert({
+              ticketId: ticket.id,
+              message,
+              senderEmail: userEmail || 'guest',
+              isFromAdmin: false,
+            })
+            await notifyAdmins({
+              title: 'New chat message for support',
+              message: `Customer message: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`,
+              type: 'support',
+              link: `/admin/support/${ticket.id}`,
+            })
+            ticketNumber = ticketNum
+          }
+        }
+      } catch (err) {
+        console.error('Failed to create ticket from chat:', err)
+      }
     }
 
     return NextResponse.json({
       response,
       needsEscalation: !response || response.includes('human assistant'),
+      ticketNumber,
     })
   } catch (error) {
     console.error('Error processing chat message:', error)

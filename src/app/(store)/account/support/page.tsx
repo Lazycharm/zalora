@@ -4,8 +4,11 @@ import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useUIStore } from '@/lib/store'
 
 export default function SupportPage() {
+  const setChatOpen = useUIStore((s) => s.setChatOpen)
+
   return (
     <div className="flex flex-col min-h-screen bg-background pb-20 lg:pb-0">
       <header className="sticky top-0 z-10 flex items-center justify-center h-14 bg-primary px-4 shadow-sm lg:hidden">
@@ -31,15 +34,12 @@ export default function SupportPage() {
               <p className="text-muted-foreground mb-4 text-center">
                 Need help? Contact our support team
               </p>
-              <div className="flex gap-2">
-                <Button>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button onClick={() => setChatOpen(true)}>
                   <Icon icon="solar:chat-round-dots-bold" className="mr-2 size-4" />
                   Live Chat
                 </Button>
-                <Button variant="outline">
-                  <Icon icon="solar:letter-bold" className="mr-2 size-4" />
-                  Email Us
-                </Button>
+                <span className="text-muted-foreground/60 text-sm line-through">Email</span>
               </div>
             </CardContent>
           </Card>

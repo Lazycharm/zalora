@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
+import { notifyAdmins } from '@/lib/notifications'
 
 export async function POST(req: NextRequest) {
   try {
@@ -74,6 +75,19 @@ export async function POST(req: NextRequest) {
       // Rollback ticket if message creation fails
       await supabaseAdmin.from('support_tickets').delete().eq('id', ticket.id)
       throw messageError
+    }
+
+    // Notify all admins about the new support ticket
+    try {
+      await notifyAdmins({
+        title: 'New support ticket',
+        message: `Ticket #${ticket.ticketNumber}: ${ticket.subject}`,
+        type: 'support',
+        link: `/admin/support/${ticket.id}`,
+      })
+    } catch (notifyErr) {
+      console.error('Failed to notify admins:', notifyErr)
+      // Don't fail the request if notification fails
     }
 
     return NextResponse.json({

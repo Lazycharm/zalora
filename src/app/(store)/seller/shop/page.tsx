@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, getSellerShopAccess } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { ShopDetailsClient } from './shop-client'
 
@@ -151,7 +151,17 @@ export default async function ShopDetailsPage() {
     redirect('/account')
   }
 
-  // Get user with shop
+  const { shop: shopFromAccess, canAccessShop } = await getSellerShopAccess(currentUser.id)
+
+  if (!shopFromAccess) {
+    redirect('/seller/create-shop')
+  }
+
+  if (!canAccessShop) {
+    redirect('/seller/verification-status')
+  }
+
+  // Get full shop with product count
   const { data: user } = await supabaseAdmin
     .from('users')
     .select(`

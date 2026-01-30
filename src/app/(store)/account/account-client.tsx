@@ -23,14 +23,29 @@ interface AccountClientProps {
   stats: {
     orders: number
     favorites: number
+    sellerOrdersCount?: number
   }
 }
 
 export function AccountClient({ user, stats }: AccountClientProps) {
-  const menuItems = [
+  const menuItems: Array<{ icon: string; label: string; href: string; color: string; show: boolean; badge?: number }> = [
+    { 
+      icon: 'solar:shop-bold', 
+      label: 'Apply for a store', 
+      href: '/seller/create-shop',
+      color: 'text-red-500',
+      show: !user.shop && user.canSell,
+    },
+    { 
+      icon: 'solar:verified-check-bold', 
+      label: 'Verification status', 
+      href: '/seller/verification-status',
+      color: 'text-blue-500',
+      show: user.canSell,
+    },
     { 
       icon: 'solar:shop-2-bold', 
-      label: 'Shop Management', 
+      label: 'Wholesale Management', 
       href: '/account/wholesale',
       color: 'text-blue-500',
       show: user.canSell,
@@ -40,7 +55,7 @@ export function AccountClient({ user, stats }: AccountClientProps) {
       label: 'Shop Details', 
       href: user.shop ? `/seller/shop` : '/seller/create-shop',
       color: 'text-pink-500',
-      show: user.canSell,
+      show: user.canSell && !!user.shop,
     },
     { 
       icon: 'solar:box-bold', 
@@ -55,6 +70,7 @@ export function AccountClient({ user, stats }: AccountClientProps) {
       href: '/seller/orders',
       color: 'text-cyan-500',
       show: user.canSell && !!user.shop,
+      badge: (stats.sellerOrdersCount ?? 0) || undefined,
     },
     { 
       icon: 'solar:document-text-bold', 
@@ -116,9 +132,9 @@ export function AccountClient({ user, stats }: AccountClientProps) {
         <h1 className="text-lg font-semibold text-primary-foreground font-heading">
           Account Management
         </h1>
-        <button className="absolute right-4 text-primary-foreground">
+        <Link href="/account/settings" className="absolute right-4 text-primary-foreground" aria-label="Settings">
           <Icon icon="solar:globe-linear" className="size-6" />
-        </button>
+        </Link>
       </header>
 
       <div className="flex-1 overflow-y-auto">
@@ -165,10 +181,12 @@ export function AccountClient({ user, stats }: AccountClientProps) {
               Shop Collection
             </span>
           </div>
-          <div className="flex flex-col items-center gap-1 border-r border-transparent">
+          <Link href="/account/orders" className="flex flex-col items-center gap-1 border-r border-transparent">
             <span className="text-base font-semibold">{stats.orders}</span>
-            <span className="text-[10px] text-muted-foreground text-center px-1">Orders</span>
-          </div>
+            <span className="text-[10px] text-muted-foreground text-center px-1">
+              My Browse
+            </span>
+          </Link>
           <div className="flex flex-col items-center gap-1">
             <span className="text-base font-bold text-foreground">{formatPrice(user.balance)}</span>
             <span className="text-[10px] text-muted-foreground text-center px-1">
@@ -230,7 +248,7 @@ export function AccountClient({ user, stats }: AccountClientProps) {
         <div className="bg-card flex flex-col">
           {visibleMenuItems.map((item, index) => (
             <Link
-              key={item.href}
+              key={item.href + index}
               href={item.href}
               className={`flex items-center px-4 py-3.5 active:bg-muted/30 ${
                 index < visibleMenuItems.length - 1 ? 'border-b border-border/50' : ''
@@ -238,6 +256,11 @@ export function AccountClient({ user, stats }: AccountClientProps) {
             >
               <Icon icon={item.icon} className={`size-6 ${item.color} mr-3`} />
               <span className="flex-1 text-sm font-medium">{item.label}</span>
+              {item.badge != null && item.badge > 0 && (
+                <span className="mr-2 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-medium flex items-center justify-center">
+                  {item.badge}
+                </span>
+              )}
               <Icon icon="solar:alt-arrow-right-linear" className="size-4 text-muted-foreground" />
             </Link>
           ))}

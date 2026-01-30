@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Icon } from '@iconify/react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import toast from 'react-hot-toast'
+import { useUIStore } from '@/lib/store'
 
 interface Message {
   id: string
@@ -25,7 +26,16 @@ const quickQuestions = [
 ]
 
 export function ChatWidget() {
+  const isChatOpen = useUIStore((s) => s.isChatOpen)
+  const setChatOpen = useUIStore((s) => s.setChatOpen)
   const [isOpen, setIsOpen] = useState(false)
+  useEffect(() => {
+    if (isChatOpen) setIsOpen(true)
+  }, [isChatOpen])
+  const setOpen = (open: boolean) => {
+    setIsOpen(open)
+    setChatOpen(open)
+  }
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '0',
@@ -158,7 +168,7 @@ export function ChatWidget() {
     <>
       {/* Chat Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setOpen(!isOpen)}
         className={cn(
           'fixed right-4 bottom-24 lg:bottom-6 z-50',
           'bg-primary text-primary-foreground size-14 rounded-xl shadow-lg',
@@ -180,7 +190,7 @@ export function ChatWidget() {
 
       {/* Chat Window */}
       <AnimatePresence>
-        {isOpen && (
+            {(isOpen || isChatOpen) && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -211,7 +221,7 @@ export function ChatWidget() {
                 </div>
               </div>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => setOpen(false)}
                 className="text-white/70 hover:text-white"
               >
                 <Icon icon="solar:close-circle-linear" className="size-6" />

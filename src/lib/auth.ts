@@ -153,6 +153,43 @@ export async function getCurrentUser() {
   }
 }
 
+/**
+ * Get seller's shop and KYC verification. Use to gate access to shop dashboard/products/orders.
+ * Redirect to /seller/verification-status if canAccessShop is false.
+ */
+export async function getSellerShopAccess(userId: string): Promise<{
+  shop: { id: string; name: string; slug: string; status: string; [key: string]: any } | null
+  verification: { status: string; [key: string]: any } | null
+  canAccessShop: boolean
+}> {
+  const [shopResult, verificationResult] = await Promise.all([
+    supabaseAdmin
+      .from('shops')
+      .select('*')
+      .eq('userId', userId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('shop_verifications')
+      .select('id, shopId, status')
+      .eq('userId', userId)
+      .maybeSingle(),
+  ])
+
+  const shop = shopResult.data
+  const verification = verificationResult.data
+  const canAccessShop =
+    !!shop &&
+    shop.status === ShopStatus.ACTIVE &&
+    !!verification &&
+    verification.status === 'APPROVED'
+
+  return {
+    shop: shop || null,
+    verification: verification || null,
+    canAccessShop,
+  }
+}
+
 export async function login(email: string, password: string) {
   try {
     // Check if Supabase is configured

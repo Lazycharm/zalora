@@ -27,7 +27,16 @@ export function CreateShopClient({ categories }: CreateShopClientProps) {
     description: '',
     logo: '',
     banner: '',
+    contactName: '',
+    idNumber: '',
+    inviteCode: '',
+    idCardFront: '',
+    idCardBack: '',
+    mainBusiness: '',
+    detailedAddress: '',
   })
+  const [uploadingIdFront, setUploadingIdFront] = useState(false)
+  const [uploadingIdBack, setUploadingIdBack] = useState(false)
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -116,7 +125,42 @@ export function CreateShopClient({ categories }: CreateShopClientProps) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
-    setFormData({ ...formData, slug })
+    setFormData((prev) => ({ ...prev, slug }))
+  }
+
+  const handleIdCardUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    side: 'front' | 'back'
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB')
+      return
+    }
+    side === 'front' ? setUploadingIdFront(true) : setUploadingIdBack(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('folder', 'kyc')
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setFormData((prev) => ({
+        ...prev,
+        [side === 'front' ? 'idCardFront' : 'idCardBack']: data.url,
+      }))
+      toast.success('ID card uploaded')
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setUploadingIdFront(false)
+      setUploadingIdBack(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -137,8 +181,8 @@ export function CreateShopClient({ categories }: CreateShopClientProps) {
         throw new Error(data.error || 'Failed to create shop')
       }
 
-      toast.success('Shop created successfully!')
-      router.push('/seller/dashboard')
+      toast.success('Shop application submitted! Your verification is pending admin approval.')
+      router.push('/seller/verification-status')
     } catch (error: any) {
       toast.error(error.message)
     } finally {
@@ -164,17 +208,138 @@ export function CreateShopClient({ categories }: CreateShopClientProps) {
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Shop Information</CardTitle>
+            <CardTitle>Apply for a store</CardTitle>
+            <p className="text-sm text-muted-foreground">Complete the form for KYC verification</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="name">Shop Name *</Label>
+              <Label htmlFor="logo">Store Logo</Label>
+              <div className="mt-2 flex items-center gap-4">
+                <label className="flex h-24 w-24 cursor-pointer flex-col items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/30 bg-muted/30 hover:bg-muted/50">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                    disabled={uploadingLogo}
+                  />
+                  {formData.logo ? (
+                    <div className="relative h-full w-full rounded-full overflow-hidden">
+                      <Image src={formData.logo} alt="Logo" fill className="object-cover" />
+                    </div>
+                  ) : (
+                    <Icon icon="solar:gallery-bold" className="size-8 text-muted-foreground" />
+                  )}
+                </label>
+                {uploadingLogo && <span className="text-sm text-muted-foreground">Uploading...</span>}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="name">* Store Name</Label>
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="My Awesome Shop"
+                onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+                placeholder="Please enter the store name"
                 required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="contactName">* Contact</Label>
+              <Input
+                id="contactName"
+                value={formData.contactName}
+                onChange={(e) => setFormData((p) => ({ ...p, contactName: e.target.value }))}
+                placeholder="Please enter a contact person"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="idNumber">* ID number</Label>
+              <Input
+                id="idNumber"
+                value={formData.idNumber}
+                onChange={(e) => setFormData((p) => ({ ...p, idNumber: e.target.value }))}
+                placeholder="Please enter your ID number"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="inviteCode">Invite Code (optional)</Label>
+              <Input
+                id="inviteCode"
+                value={formData.inviteCode}
+                onChange={(e) => setFormData((p) => ({ ...p, inviteCode: e.target.value }))}
+                placeholder="Please enter the invitation code"
+              />
+            </div>
+
+            <div>
+              <Label>ID card</Label>
+              <div className="mt-2 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="flex aspect-[1.6] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-2 hover:bg-muted/30">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleIdCardUpload(e, 'front')}
+                      disabled={uploadingIdFront}
+                    />
+                    {formData.idCardFront ? (
+                      <div className="relative h-20 w-full">
+                        <Image src={formData.idCardFront} alt="ID front" fill className="object-contain" />
+                      </div>
+                    ) : (
+                      <Icon icon="solar:document-bold" className="size-10 text-muted-foreground" />
+                    )}
+                  </label>
+                  <p className="mt-1 text-center text-xs text-muted-foreground">ID card front photo</p>
+                </div>
+                <div>
+                  <label className="flex aspect-[1.6] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-2 hover:bg-muted/30">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleIdCardUpload(e, 'back')}
+                      disabled={uploadingIdBack}
+                    />
+                    {formData.idCardBack ? (
+                      <div className="relative h-20 w-full">
+                        <Image src={formData.idCardBack} alt="ID back" fill className="object-contain" />
+                      </div>
+                    ) : (
+                      <Icon icon="solar:document-bold" className="size-10 text-muted-foreground" />
+                    )}
+                  </label>
+                  <p className="mt-1 text-center text-xs text-muted-foreground">Photo of the back of your ID card</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="mainBusiness">* Main Business</Label>
+              <Input
+                id="mainBusiness"
+                value={formData.mainBusiness}
+                onChange={(e) => setFormData((p) => ({ ...p, mainBusiness: e.target.value }))}
+                placeholder="Select or enter main business"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="detailedAddress">* Detailed address</Label>
+              <Textarea
+                id="detailedAddress"
+                value={formData.detailedAddress}
+                onChange={(e) => setFormData((p) => ({ ...p, detailedAddress: e.target.value }))}
+                placeholder="Please enter the detailed address"
+                rows={3}
               />
             </div>
 
@@ -184,17 +349,14 @@ export function CreateShopClient({ categories }: CreateShopClientProps) {
                 <Input
                   id="slug"
                   value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  placeholder="my-awesome-shop"
+                  onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
+                  placeholder="my-shop"
                   required
                 />
                 <Button type="button" variant="outline" onClick={generateSlug}>
                   Generate
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Your shop will be accessible at /shop/{formData.slug || 'your-slug'}
-              </p>
             </div>
 
             <div>
@@ -202,49 +364,23 @@ export function CreateShopClient({ categories }: CreateShopClientProps) {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
                 placeholder="Tell customers about your shop..."
-                rows={4}
+                rows={3}
               />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Shop Images</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="logo">Shop Logo</Label>
-              <div className="mt-2">
-                <Input
-                  id="logo"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  disabled={uploadingLogo}
-                />
-                {formData.logo && (
-                  <div className="mt-4 relative w-32 h-32 rounded-lg overflow-hidden border border-border">
-                    <Image src={formData.logo} alt="Logo" fill className="object-cover" />
-                  </div>
-                )}
-              </div>
-            </div>
 
             <div>
-              <Label htmlFor="banner">Shop Banner</Label>
+              <Label>Shop Banner</Label>
               <div className="mt-2">
                 <Input
-                  id="banner"
                   type="file"
                   accept="image/*"
                   onChange={handleBannerUpload}
                   disabled={uploadingBanner}
                 />
                 {formData.banner && (
-                  <div className="mt-4 relative w-full h-48 rounded-lg overflow-hidden border border-border">
+                  <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border">
                     <Image src={formData.banner} alt="Banner" fill className="object-cover" />
                   </div>
                 )}

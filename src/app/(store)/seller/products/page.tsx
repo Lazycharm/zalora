@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, getSellerShopAccess } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SellerProductsClient } from './products-client'
 
@@ -119,6 +119,10 @@ export default async function SellerProductsPage({
   if (!user.canSell) {
     redirect('/account')
   }
+
+  const { shop, canAccessShop } = await getSellerShopAccess(user.id)
+  if (!shop) redirect('/seller/create-shop')
+  if (!canAccessShop) redirect('/seller/verification-status')
 
   const data = await getSellerProducts(user.id, searchParams)
   return <SellerProductsClient {...data} searchParams={searchParams} />

@@ -24,7 +24,7 @@ export default async function CreateShopPage() {
     .single()
 
   if (user?.shops && Array.isArray(user.shops) && user.shops.length > 0) {
-    redirect('/seller/shop')
+    redirect('/seller/verification-status')
   }
 
   const { data: categories } = await supabaseAdmin

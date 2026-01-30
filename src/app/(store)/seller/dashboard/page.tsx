@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, getSellerShopAccess } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SellerDashboardClient } from './dashboard-client'
 
@@ -141,16 +141,16 @@ export default async function SellerDashboardPage() {
     redirect('/account')
   }
 
-  // Get user's shop
-  const { data: user } = await supabaseAdmin
-    .from('users')
-    .select(`
-      shops (*)
-    `)
-    .eq('id', currentUser.id)
-    .single()
+  const { shop, canAccessShop } = await getSellerShopAccess(currentUser.id)
 
-  const shop = user?.shops && Array.isArray(user.shops) && user.shops.length > 0 ? user.shops[0] : null
+  if (!shop) {
+    redirect('/seller/create-shop')
+  }
+
+  if (!canAccessShop) {
+    redirect('/seller/verification-status')
+  }
+
   const stats = await getSellerStats(currentUser.id, shop?.id || null)
 
   // Convert Decimal fields to numbers for client component

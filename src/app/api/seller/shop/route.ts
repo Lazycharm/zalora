@@ -27,11 +27,31 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { name, slug, description, logo, banner } = body
+    const {
+      name,
+      slug,
+      description,
+      logo,
+      banner,
+      contactName,
+      idNumber,
+      inviteCode,
+      idCardFront,
+      idCardBack,
+      mainBusiness,
+      detailedAddress,
+    } = body
 
     if (!name || !slug) {
       return NextResponse.json(
         { error: 'Name and slug are required' },
+        { status: 400 }
+      )
+    }
+
+    if (!contactName || !idNumber) {
+      return NextResponse.json(
+        { error: 'Contact name and ID number are required for verification' },
         { status: 400 }
       )
     }
@@ -64,6 +84,27 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       throw error
+    }
+
+    // Create KYC verification record (PENDING)
+    const { error: verificationError } = await supabaseAdmin
+      .from('shop_verifications')
+      .insert({
+        shopId: shop.id,
+        userId: session.userId,
+        contactName: String(contactName).trim(),
+        idNumber: String(idNumber).trim(),
+        inviteCode: inviteCode ? String(inviteCode).trim() : null,
+        idCardFront: idCardFront || null,
+        idCardBack: idCardBack || null,
+        mainBusiness: mainBusiness ? String(mainBusiness).trim() : null,
+        detailedAddress: detailedAddress ? String(detailedAddress).trim() : null,
+        status: 'PENDING',
+      })
+
+    if (verificationError) {
+      await supabaseAdmin.from('shops').delete().eq('id', shop.id)
+      throw verificationError
     }
 
     return NextResponse.json({ shop })

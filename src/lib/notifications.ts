@@ -107,3 +107,41 @@ export async function createBroadcastNotification(
     throw error
   }
 }
+
+/**
+ * Notify all admin and manager users (e.g. when new support ticket is created)
+ */
+export async function notifyAdmins(params: Omit<CreateNotificationParams, 'userId'>) {
+  try {
+    const { data: admins } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .in('role', ['ADMIN', 'MANAGER'])
+
+    if (!admins || admins.length === 0) {
+      return []
+    }
+
+    const notifications = admins.map((user) => ({
+      userId: user.id,
+      title: params.title,
+      message: params.message,
+      type: params.type,
+      link: params.link || null,
+    }))
+
+    const { data, error } = await supabaseAdmin
+      .from('notifications')
+      .insert(notifications)
+      .select()
+
+    if (error) {
+      throw error
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Error notifying admins:', error)
+    throw error
+  }
+}

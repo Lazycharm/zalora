@@ -79,11 +79,21 @@ interface Order {
   createdAt: string
 }
 
+interface Verification {
+  id: string
+  status: string
+  contactName: string
+  idNumber: string
+  reviewedAt: string | null
+  rejectionReason: string | null
+}
+
 interface AdminShopDetailsClientProps {
   shop: Shop
   owner: Owner
   products: Product[]
   recentOrders: Order[]
+  verification: Verification | null
 }
 
 export function AdminShopDetailsClient({
@@ -91,6 +101,7 @@ export function AdminShopDetailsClient({
   owner,
   products,
   recentOrders,
+  verification,
 }: AdminShopDetailsClientProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -202,6 +213,30 @@ export function AdminShopDetailsClient({
                   {initialShop.status}
                 </Badge>
               </div>
+              {verification && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-sm font-medium mb-1">KYC Verification</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge
+                      className={
+                        verification.status === 'APPROVED'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : verification.status === 'REJECTED'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-amber-100 text-amber-800'
+                      }
+                    >
+                      {verification.status}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      Contact: {verification.contactName} · ID: ***
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    When you set Shop Status to <strong>Active</strong>, KYC verification is automatically set to Approved and the seller can access their shop.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

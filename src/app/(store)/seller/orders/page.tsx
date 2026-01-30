@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, getSellerShopAccess } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SellerOrdersClient } from './orders-client'
 
@@ -161,16 +161,9 @@ export default async function SellerOrdersPage({
     redirect('/account')
   }
 
-  // Check if user has shop
-  const { data: user } = await supabaseAdmin
-    .from('users')
-    .select('shops (*)')
-    .eq('id', currentUser.id)
-    .single()
-
-  if (!user?.shops || !Array.isArray(user.shops) || user.shops.length === 0) {
-    redirect('/seller/create-shop')
-  }
+  const { shop, canAccessShop } = await getSellerShopAccess(currentUser.id)
+  if (!shop) redirect('/seller/create-shop')
+  if (!canAccessShop) redirect('/seller/verification-status')
 
   const data = await getSellerOrders(currentUser.id, searchParams)
 

@@ -135,6 +135,18 @@ export async function PATCH(
       throw error
     }
 
+    // When admin approves shop (status -> ACTIVE), also approve KYC verification
+    if (status === ShopStatus.ACTIVE) {
+      await supabaseAdmin
+        .from('shop_verifications')
+        .update({
+          status: 'APPROVED',
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: session.userId,
+        })
+        .eq('shopId', params.id)
+    }
+
     return NextResponse.json({ shop })
   } catch (error: any) {
     console.error('Error updating shop:', error)

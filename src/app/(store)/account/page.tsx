@@ -6,7 +6,7 @@ import { AccountClient } from './account-client'
 export const dynamic = 'force-dynamic'
 
 async function getAccountData(userId: string) {
-  const [ordersCount, favoritesCount, userResult, settingResult] = await Promise.all([
+  const [ordersCount, favoritesCount, userResult, settingResult, sellerOrdersCountResult] = await Promise.all([
     supabaseAdmin.from('orders').select('*', { count: 'exact', head: true }).eq('userId', userId),
     supabaseAdmin.from('favorites').select('*', { count: 'exact', head: true }).eq('userId', userId),
     supabaseAdmin
@@ -36,6 +36,17 @@ async function getAccountData(userId: string) {
   const user = userResult.data
   const userSellingEnabled = settingResult.data?.value === 'true'
   const shop = user?.shops && Array.isArray(user.shops) && user.shops.length > 0 ? user.shops[0] : null
+  const shopId = shop?.id
+
+  let sellerOrdersCount = 0
+  if (shopId) {
+    const { count } = await supabaseAdmin
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('shopId', shopId)
+      .not('status', 'in', '("COMPLETED","CANCELLED","REFUNDED")')
+    sellerOrdersCount = count ?? 0
+  }
 
   return {
     user: user
@@ -53,6 +64,7 @@ async function getAccountData(userId: string) {
     stats: {
       orders: ordersCount.count || 0,
       favorites: favoritesCount.count || 0,
+      sellerOrdersCount,
     },
   }
 }
