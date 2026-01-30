@@ -175,30 +175,50 @@ export async function GET(request: Request) {
     }
 
     // 3) Delete existing demo products (slug starts with demo-)
-    // First get all demo product IDs
-    const { data: existingDemoProducts } = await supabaseAdmin
-      .from('products')
-      .select('id')
-      .ilike('slug', 'demo-%')
-    
-    if (existingDemoProducts && existingDemoProducts.length > 0) {
+    // Use a more reliable deletion method - delete in batches
+    let hasMore = true
+    while (hasMore) {
+      const { data: existingDemoProducts } = await supabaseAdmin
+        .from('products')
+        .select('id')
+        .ilike('slug', 'demo-%')
+        .limit(100)
+      
+      if (!existingDemoProducts || existingDemoProducts.length === 0) {
+        hasMore = false
+        break
+      }
+
       const productIds = existingDemoProducts.map(p => p.id)
-      // Delete product images first (cascade should handle this, but being explicit)
+      
+      // Delete product images first
       for (const productId of productIds) {
         await supabaseAdmin
           .from('product_images')
           .delete()
           .eq('productId', productId)
       }
-      // Then delete products
-      for (const productId of productIds) {
-        const { error } = await supabaseAdmin
-          .from('products')
-          .delete()
-          .eq('id', productId)
-        if (error) {
-          console.warn(`Failed to delete demo product ${productId}:`, error.message)
+      
+      // Delete products in batch
+      const { error: deleteError } = await supabaseAdmin
+        .from('products')
+        .delete()
+        .in('id', productIds)
+      
+      if (deleteError) {
+        console.warn(`Failed to delete demo products batch:`, deleteError.message)
+        // Try individual deletes as fallback
+        for (const productId of productIds) {
+          await supabaseAdmin
+            .from('products')
+            .delete()
+            .eq('id', productId)
         }
+      }
+      
+      // If we got less than the limit, we're done
+      if (existingDemoProducts.length < 100) {
+        hasMore = false
       }
     }
 
@@ -216,41 +236,76 @@ export async function GET(request: Request) {
         const urls = pickN(DEMO_IMAGE_PATHS, numImages)
         const primaryUrl = urls[0]!
 
-        const { data: product, error: productError } = await supabaseAdmin
+        // Check if product already exists
+        const { data: existingProduct } = await supabaseAdmin
           .from('products')
-          .insert({
-            shopId: null,
-            categoryId: category.id,
-            name,
-            slug,
-            description: pick(DESCRIPTIONS),
-            shortDesc: pick(SHORT_DESCS),
-            price,
-            comparePrice: Math.round(comparePrice * 100) / 100,
-            costPrice: null,
-            sku: `DEMO-${category.slug.toUpperCase().replace(/-/g, '')}-${n}`,
-            barcode: null,
-            stock,
-            lowStockAlert: 5,
-            weight: null,
-            status: 'PUBLISHED',
-            isFeatured: n <= 2,
-            isPromoted: n === 1,
-            rating: 3.5 + Math.random() * 1.5,
-            totalReviews: Math.floor(Math.random() * 50),
-            totalSales: Math.floor(Math.random() * 30),
-            views: Math.floor(Math.random() * 200),
-          })
           .select('id')
+          .eq('slug', slug)
           .single()
 
+        const productData = {
+          shopId: null,
+          categoryId: category.id,
+          name,
+          slug,
+          description: pick(DESCRIPTIONS),
+          shortDesc: pick(SHORT_DESCS),
+          price,
+          comparePrice: Math.round(comparePrice * 100) / 100,
+          costPrice: null,
+          sku: `DEMO-${category.slug.toUpperCase().replace(/-/g, '')}-${n}`,
+          barcode: null,
+          stock,
+          lowStockAlert: 5,
+          weight: null,
+          status: 'PUBLISHED' as const,
+          isFeatured: n <= 2,
+          isPromoted: n === 1,
+          rating: 3.5 + Math.random() * 1.5,
+          totalReviews: Math.floor(Math.random() * 50),
+          totalSales: Math.floor(Math.random() * 30),
+          views: Math.floor(Math.random() * 200),
+        }
+
+        let product: { id: string } | null = null
+        let productError: any = null
+
+        if (existingProduct?.id) {
+          // Update existing product
+          const { data, error } = await supabaseAdmin
+            .from('products')
+            .update(productData)
+            .eq('id', existingProduct.id)
+            .select('id')
+            .single()
+          product = data
+          productError = error
+        } else {
+          // Insert new product
+          const { data, error } = await supabaseAdmin
+            .from('products')
+            .insert(productData)
+            .select('id')
+            .single()
+          product = data
+          productError = error
+        }
+
         if (productError) {
-          console.error(`Failed to insert product ${slug}:`, productError.message)
-          throw new Error(`Failed to insert product ${slug}: ${productError.message}`)
+          console.error(`Failed to ${existingProduct ? 'update' : 'insert'} product ${slug}:`, productError.message)
+          throw new Error(`Failed to ${existingProduct ? 'update' : 'insert'} product ${slug}: ${productError.message}`)
         }
 
         if (product?.id) {
           productCount++
+          
+          // Delete existing images for this product first (in case it's an update)
+          await supabaseAdmin
+            .from('product_images')
+            .delete()
+            .eq('productId', product.id)
+          
+          // Insert new images
           for (let i = 0; i < urls.length; i++) {
             const { error: imageError } = await supabaseAdmin.from('product_images').insert({
               productId: product.id,
