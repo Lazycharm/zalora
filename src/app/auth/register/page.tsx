@@ -50,10 +50,16 @@ export default function RegisterPage() {
         credentials: 'include',
       })
 
-      const data = await res.json()
+      let data: { error?: string; user?: unknown } = {}
+      try {
+        data = await res.json()
+      } catch {
+        // Response not JSON (e.g. empty or HTML)
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Registration failed')
+        const message = data.error || (res.status === 400 ? 'Invalid request. Check your details and try again.' : 'Registration failed')
+        throw new Error(message)
       }
 
       // Registration succeeded — use user from response (don't rely on /api/auth/me
