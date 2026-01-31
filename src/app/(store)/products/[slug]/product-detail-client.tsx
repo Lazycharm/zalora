@@ -60,6 +60,7 @@ export function ProductDetailClient({
   relatedProducts: RelatedProduct[]
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const user = useUserStore((state) => state.user)
   const addItem = useCartStore((state) => state.addItem)
   const [quantity, setQuantity] = useState(1)

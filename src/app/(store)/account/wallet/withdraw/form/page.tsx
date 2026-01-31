@@ -38,6 +38,7 @@ export default async function WithdrawFormPage({
       balance={balance}
       currency={method.currency}
       network={method.network}
+      methodId={methodId ?? ''}
     />
   )
 }

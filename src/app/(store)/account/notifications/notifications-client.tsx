@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatDateTime } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { useLanguage } from '@/contexts/language-context'
+import type { TranslationKey } from '@/lib/translations'
 
 interface Notification {
   id: string
@@ -147,15 +148,15 @@ export function UserNotificationsClient({
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-2">
-            {[
-              { key: 'all', label: 'All' },
-              { key: 'unread', label: 'Unread' },
-              { key: 'order', label: 'Orders' },
-              { key: 'payment', label: 'Payments' },
-              { key: 'promo', label: 'Promotions' },
-              { key: 'system', label: 'System' },
-              { key: 'support', label: 'Support' },
-            ].map((item) => (
+            {([
+              { key: 'all', labelKey: 'all' as TranslationKey },
+              { key: 'unread', labelKey: 'unread' as TranslationKey },
+              { key: 'order', labelKey: 'orders' as TranslationKey },
+              { key: 'payment', labelKey: 'payments' as TranslationKey },
+              { key: 'promo', labelKey: 'promotions' as TranslationKey },
+              { key: 'system', labelKey: 'system' as TranslationKey },
+              { key: 'support', labelKey: 'support' as TranslationKey },
+            ] as const).map((item) => (
               <Button
                 key={item.key}
                 variant={filter === item.key ? 'default' : 'outline'}

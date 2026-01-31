@@ -127,6 +127,7 @@ export function AdminShopDetailsClient({
     followersCount: initialShop.followersCount.toString(),
     totalSales: initialShop.totalSales.toString(),
     orderCount: initialShop.orderCount.toString(),
+    memberSince: initialShop.memberSince ?? '',
   })
 
   const handleApproveKyc = async () => {
@@ -526,7 +527,7 @@ export function AdminShopDetailsClient({
                       </div>
                       <div className="text-right flex-shrink-0 ml-3">
                         <p className="font-semibold text-sm">{formatPrice(order.total)}</p>
-                        <Badge className={getStatusColor(order.status)} variant="outline" className="text-[10px]">
+                        <Badge className={`${getStatusColor(order.status)} text-[10px]`} variant="outline">
                           {order.status}
                         </Badge>
                       </div>
@@ -643,6 +644,7 @@ export function AdminShopDetailsClient({
                     followersCount: initialShop.followersCount.toString(),
                     totalSales: initialShop.totalSales.toString(),
                     orderCount: initialShop.orderCount.toString(),
+                    memberSince: initialShop.memberSince ?? '',
                   })
                   setIsEditDialogOpen(true)
                 }}

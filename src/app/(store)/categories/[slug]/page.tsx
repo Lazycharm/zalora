@@ -63,7 +63,7 @@ async function getCategoryData(slug: string, searchParams: SearchParams) {
         .select(select)
         .eq('id', match.id)
         .single()
-      if (byId.data) result = { data: byId.data, error: byId.error }
+      if (byId.data) result = byId
     }
   }
 

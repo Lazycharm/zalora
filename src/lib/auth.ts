@@ -132,11 +132,12 @@ export async function getCurrentUser() {
     const userSellingEnabled = settingResult.data?.value === 'true'
     // Supabase can return shops as array or (when single) as one object
     const rawShops = user.shops
-    const shopRow =
+    type ShopRow = { id: string; name: string; slug: string; status: string; level?: string; balance?: number }
+    const shopRow: ShopRow | null =
       Array.isArray(rawShops) && rawShops.length > 0
-        ? rawShops[0]
-        : rawShops && typeof rawShops === 'object' && rawShops !== null && 'id' in rawShops
-          ? rawShops
+        ? (rawShops[0] as ShopRow)
+        : rawShops && typeof rawShops === 'object' && rawShops !== null && !Array.isArray(rawShops) && 'id' in rawShops
+          ? (rawShops as ShopRow)
           : null
     const shop = shopRow
 
@@ -154,8 +155,8 @@ export async function getCurrentUser() {
         name: shop.name,
         slug: shop.slug,
         status: shop.status,
-        level: (shop as { level?: string }).level ?? 'BRONZE',
-        balance: Number((shop as { balance?: number }).balance ?? 0),
+        level: shop.level ?? 'BRONZE',
+        balance: Number(shop.balance ?? 0),
       } : null,
       isImpersonating: !!session.impersonatedBy,
       impersonatedBy: session.impersonatedBy,

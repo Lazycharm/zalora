@@ -249,7 +249,6 @@ export const translations = {
     payments: 'Payments',
     promotions: 'Promotions',
     system: 'System',
-    support: 'Support',
 
     // Profile
     editProfile: 'Edit Profile',
@@ -518,7 +517,6 @@ export const translations = {
     payments: '支付',
     promotions: '促销',
     system: '系统',
-    support: '客服',
     editProfile: '编辑资料',
     updateYourPersonalInformation: '更新您的个人信息',
     personalInformation: '个人信息',

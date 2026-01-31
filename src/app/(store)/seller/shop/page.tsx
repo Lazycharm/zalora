@@ -5,7 +5,7 @@ import { ShopDetailsClient } from './shop-client'
 
 export const dynamic = 'force-dynamic'
 
-async function getShopStats(shopId: string, shop: { followers: number; totalSales: number }) {
+async function getShopStats(shopId: string, shop: { followers?: number; totalSales?: number }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today)
@@ -121,7 +121,7 @@ async function getShopStats(shopId: string, shop: { followers: number; totalSale
   const followersCount = shop.followers || 0
 
   // Use stored totalSales from shop if available, otherwise use calculated value
-  const finalTotalSales = shop.totalSales > 0 ? shop.totalSales : totalSales
+  const finalTotalSales = (shop.totalSales ?? 0) > 0 ? (shop.totalSales ?? 0) : totalSales
 
   // Calculate credit score
   const completedOrders = allOrders.filter((o: any) => o.status === 'DELIVERED').length
@@ -163,7 +163,7 @@ export default async function ShopDetailsPage() {
 
   // Use the shop we already have from getSellerShopAccess (avoids excluding shops with 0 products)
   const shop = shopFromAccess
-  const stats = await getShopStats(shop.id, shop)
+  const stats = await getShopStats(shop.id, { followers: (shop as { followers?: number }).followers, totalSales: (shop as { totalSales?: number }).totalSales })
 
   // Get product count
   const { count: productCount } = await supabaseAdmin
@@ -172,8 +172,12 @@ export default async function ShopDetailsPage() {
     .eq('shopId', shop.id)
 
   // Convert Decimal fields to numbers and ensure required fields exist (prevent shop details crash)
+  const shopRow = shop as { description?: string | null; logo?: string | null; banner?: string | null; balance?: number; rating?: number; commissionRate?: number; followers?: number; totalSales?: number; level?: string }
   const shopData = {
     ...shop,
+    description: shopRow.description ?? null,
+    logo: shopRow.logo ?? null,
+    banner: shopRow.banner ?? null,
     balance: Number(shop.balance ?? 0),
     rating: Number(shop.rating ?? 0),
     commissionRate: Number(shop.commissionRate ?? 0),

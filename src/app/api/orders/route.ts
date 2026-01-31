@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
               return p?.shopId == null ? item.productId : null
             })
             .filter(Boolean) as string[]
-          const uniqueIds = [...new Set(mainShopProductIds)]
+          const uniqueIds = Array.from(new Set(mainShopProductIds))
           if (uniqueIds.length > 0) {
             const { data: fullProducts } = await supabaseAdmin
               .from('products')

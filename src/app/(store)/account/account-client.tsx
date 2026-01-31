@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { formatPrice } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
+import type { TranslationKey } from '@/lib/translations'
 
 interface User {
   id: string
@@ -34,7 +35,7 @@ export function AccountClient({ user, stats }: AccountClientProps) {
   const hasApprovedShop = !!(user.shop && user.shop.status === 'ACTIVE')
 
   // Menu order and styling from reference: account-management/account-management.tsx
-  const menuItems: Array<{ icon: string; labelKey: string; href: string; color: string; show: boolean; badge?: number; inactive?: boolean }> = [
+  const menuItems: Array<{ icon: string; labelKey: TranslationKey; href: string; color: string; show: boolean; badge?: number; inactive?: boolean }> = [
     { icon: 'solar:megaphone-bold', labelKey: 'wholesaleManagement', href: '/account/wholesale', color: 'text-chart-1', show: user.canSell, inactive: !hasApprovedShop },
     { icon: 'solar:shop-bold', labelKey: 'applyForShop', href: '/seller/create-shop', color: 'text-chart-2', show: user.canSell },
     { icon: 'solar:chart-2-bold', labelKey: 'sellerDashboard', href: '/seller/dashboard', color: 'text-chart-2', show: user.canSell, inactive: !hasApprovedShop },

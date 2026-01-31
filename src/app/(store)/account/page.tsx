@@ -37,13 +37,15 @@ async function getAccountData(userId: string) {
   const user = userResult.data
   const userSellingEnabled = settingResult.data?.value === 'true'
   const rawShops = user?.shops
-  const shopRow = Array.isArray(rawShops) && rawShops.length > 0
-    ? rawShops[0]
-    : rawShops && typeof rawShops === 'object' && rawShops !== null && 'id' in rawShops
-      ? rawShops
-      : null
+  type ShopRow = { id: string; name?: string | null; status?: string | null }
+  const shopRow: ShopRow | null =
+    Array.isArray(rawShops) && rawShops.length > 0
+      ? (rawShops[0] as ShopRow)
+      : rawShops && typeof rawShops === 'object' && rawShops !== null && !Array.isArray(rawShops) && 'id' in rawShops
+        ? (rawShops as ShopRow)
+        : null
   const shop = shopRow
-    ? { id: shopRow.id, name: shopRow.name, status: shopRow.status || 'PENDING' }
+    ? { id: shopRow.id, name: shopRow.name ?? '', status: shopRow.status || 'PENDING' }
     : null
   const shopId = shop?.id
 

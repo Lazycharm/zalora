@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice, getStatusColor, formatDateTime } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
+import type { TranslationKey } from '@/lib/translations'
 
 interface Shop {
   id: string
@@ -37,55 +38,13 @@ interface SellerDashboardClientProps {
 
 export function SellerDashboardClient({ stats, shop }: SellerDashboardClientProps) {
   const { t } = useLanguage()
-  const statCards = [
-    {
-      titleKey: 'totalProducts' as const,
-      value: stats.totalProducts,
-      icon: 'solar:box-bold',
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-50',
-      href: '/seller/products',
-    },
-    {
-      title: 'Active Products',
-      value: stats.activeProducts,
-      icon: 'solar:check-circle-bold',
-      color: 'text-green-500',
-      bgColor: 'bg-green-50',
-      href: '/seller/products?status=published',
-    },
-    {
-      title: 'Total Orders',
-      value: stats.totalOrders,
-      icon: 'solar:bill-list-bold',
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-50',
-      href: '/seller/orders',
-    },
-    {
-      title: 'Pending Orders',
-      value: stats.pendingOrders,
-      icon: 'solar:clock-circle-bold',
-      color: 'text-orange-500',
-      bgColor: 'bg-orange-50',
-      href: '/seller/orders?status=pending',
-    },
-    {
-      title: 'Total Revenue',
-      value: formatPrice(stats.totalRevenue),
-      icon: 'solar:wallet-bold',
-      color: 'text-amber-500',
-      bgColor: 'bg-amber-50',
-      href: '/seller/orders',
-    },
-    {
-      title: 'Shop Balance',
-      value: formatPrice(Number(shop?.balance || 0)),
-      icon: 'solar:wallet-money-bold',
-      color: 'text-pink-500',
-      bgColor: 'bg-pink-50',
-      href: '/seller/shop',
-    },
+  const statCards: Array<{ titleKey: TranslationKey; value: string | number; icon: string; color: string; bgColor: string; href: string }> = [
+    { titleKey: 'totalProducts', value: stats.totalProducts, icon: 'solar:box-bold', color: 'text-blue-500', bgColor: 'bg-blue-50', href: '/seller/products' },
+    { titleKey: 'activeProducts', value: stats.activeProducts, icon: 'solar:check-circle-bold', color: 'text-green-500', bgColor: 'bg-green-50', href: '/seller/products?status=published' },
+    { titleKey: 'totalOrders', value: stats.totalOrders, icon: 'solar:bill-list-bold', color: 'text-purple-500', bgColor: 'bg-purple-50', href: '/seller/orders' },
+    { titleKey: 'pendingOrders', value: stats.pendingOrders, icon: 'solar:clock-circle-bold', color: 'text-orange-500', bgColor: 'bg-orange-50', href: '/seller/orders?status=pending' },
+    { titleKey: 'totalRevenue', value: formatPrice(stats.totalRevenue), icon: 'solar:wallet-bold', color: 'text-amber-500', bgColor: 'bg-amber-50', href: '/seller/orders' },
+    { titleKey: 'shopBalance', value: formatPrice(Number(shop?.balance || 0)), icon: 'solar:wallet-money-bold', color: 'text-pink-500', bgColor: 'bg-pink-50', href: '/seller/shop' },
   ]
 
   return (
@@ -149,7 +108,7 @@ export function SellerDashboardClient({ stats, shop }: SellerDashboardClientProp
           {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {statCards.map((stat) => (
-              <Link key={stat.titleKey} href={stat.href}>
+              <Link key={stat.href} href={stat.href}>
                 <Card className="hover:shadow-md transition-shadow cursor-pointer">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
