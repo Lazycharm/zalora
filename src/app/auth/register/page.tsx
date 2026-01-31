@@ -56,15 +56,13 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Registration failed')
       }
 
-      // Fetch user data (credentials so Supabase/auth cookies are sent)
-      const userRes = await fetch('/api/auth/me', { credentials: 'include' })
-      const userData = await userRes.json()
-      
-      if (userRes.ok && userData.user) {
-        setUser(userData.user)
-        toast.success('Account created successfully!')
-        router.push('/')
+      // Registration succeeded — use user from response (don't rely on /api/auth/me
+      // which can fail to see the new session on Netlify/serverless)
+      if (data.user) {
+        setUser(data.user)
       }
+      toast.success('Account created successfully!')
+      router.push('/')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Registration failed')
     } finally {
