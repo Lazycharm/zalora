@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from './supabase'
+import { createSupabaseServerClient } from './supabase-server'
 import bcrypt from 'bcryptjs'
 
 // Enums (replacing Prisma enums)
@@ -75,92 +76,110 @@ export async function getSession(): Promise<JWTPayload | null> {
   return verifyToken(token)
 }
 
+/** Fetch app user (public.users + shop + settings) by id. Used by both Supabase Auth and legacy JWT. */
+async function getAppUserById(
+  userId: string,
+  sessionOverrides?: { isImpersonating?: boolean; impersonatedBy?: string }
+) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null
+  const [userResult, settingResult] = await Promise.all([
+    supabaseAdmin
+      .from('users')
+      .select(`
+        id,
+        email,
+        name,
+        avatar,
+        role,
+        status,
+        balance,
+        canSell,
+        shops (
+          id,
+          name,
+          slug,
+          status,
+          level,
+          balance
+        )
+      `)
+      .eq('id', userId)
+      .single(),
+    supabaseAdmin
+      .from('settings')
+      .select('value')
+      .eq('key', 'user_selling_enabled')
+      .single(),
+  ])
+  if (userResult.error || !userResult.data) return null
+  const user = userResult.data
+  if (user.status !== UserStatus.ACTIVE) return null
+  const userSellingEnabled = settingResult.data?.value === 'true'
+  type ShopRow = { id: string; name: string; slug: string; status: string; level?: string; balance?: number }
+  const rawShops = user.shops
+  const shopRow: ShopRow | null =
+    Array.isArray(rawShops) && rawShops.length > 0
+      ? (rawShops[0] as ShopRow)
+      : rawShops && typeof rawShops === 'object' && rawShops !== null && !Array.isArray(rawShops) && 'id' in rawShops
+        ? (rawShops as ShopRow)
+        : null
+  const shop = shopRow
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    avatar: user.avatar,
+    role: user.role as UserRole,
+    status: user.status as UserStatus,
+    balance: Number(user.balance || 0),
+    canSell: user.canSell && userSellingEnabled,
+    shop: shop
+      ? {
+          id: shop.id,
+          name: shop.name,
+          slug: shop.slug,
+          status: shop.status,
+          level: shop.level ?? 'BRONZE',
+          balance: Number(shop.balance ?? 0),
+        }
+      : null,
+    isImpersonating: sessionOverrides?.isImpersonating ?? false,
+    impersonatedBy: sessionOverrides?.impersonatedBy,
+  }
+}
+
+/**
+ * Get current user: tries Supabase Auth (email provider) first so sessions work on Netlify,
+ * then falls back to legacy JWT cookie for existing users.
+ */
 export async function getCurrentUser() {
   try {
-    // Check if Supabase is configured
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.warn('Supabase not configured, returning null user')
       return null
     }
 
+    // 1) Supabase Auth (email provider) – cookies managed by @supabase/ssr, reliable on serverless
+    if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      try {
+        const supabase = await createSupabaseServerClient()
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+        if (authUser?.id) {
+          const appUser = await getAppUserById(authUser.id)
+          if (appUser) return appUser
+        }
+      } catch (e) {
+        // Supabase client or cookie read failed; fall back to legacy
+      }
+    }
+
+    // 2) Legacy JWT cookie (existing users, or when Supabase Auth not configured)
     const session = await getSession()
     if (!session) return null
-
-    // Check if session is expired
-    if (session.exp && session.exp < Date.now() / 1000) {
-      return null
-    }
-
-    // Fetch user and shop in parallel
-    const [userResult, settingResult] = await Promise.all([
-      supabaseAdmin
-        .from('users')
-        .select(`
-          id,
-          email,
-          name,
-          avatar,
-          role,
-          status,
-          balance,
-          canSell,
-          shops (
-            id,
-            name,
-            slug,
-            status,
-            level,
-            balance
-          )
-        `)
-        .eq('id', session.userId)
-        .single(),
-      supabaseAdmin
-        .from('settings')
-        .select('value')
-        .eq('key', 'user_selling_enabled')
-        .single(),
-    ])
-
-    if (userResult.error || !userResult.data) {
-      return null
-    }
-
-    const user = userResult.data
-    if (user.status !== UserStatus.ACTIVE) return null
-
-    const userSellingEnabled = settingResult.data?.value === 'true'
-    // Supabase can return shops as array or (when single) as one object
-    const rawShops = user.shops
-    type ShopRow = { id: string; name: string; slug: string; status: string; level?: string; balance?: number }
-    const shopRow: ShopRow | null =
-      Array.isArray(rawShops) && rawShops.length > 0
-        ? (rawShops[0] as ShopRow)
-        : rawShops && typeof rawShops === 'object' && rawShops !== null && !Array.isArray(rawShops) && 'id' in rawShops
-          ? (rawShops as ShopRow)
-          : null
-    const shop = shopRow
-
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      avatar: user.avatar,
-      role: user.role as UserRole,
-      status: user.status as UserStatus,
-      balance: Number(user.balance || 0),
-      canSell: user.canSell && userSellingEnabled,
-      shop: shop ? {
-        id: shop.id,
-        name: shop.name,
-        slug: shop.slug,
-        status: shop.status,
-        level: shop.level ?? 'BRONZE',
-        balance: Number(shop.balance ?? 0),
-      } : null,
+    if (session.exp && session.exp < Date.now() / 1000) return null
+    return getAppUserById(session.userId, {
       isImpersonating: !!session.impersonatedBy,
       impersonatedBy: session.impersonatedBy,
-    }
+    })
   } catch (error) {
     console.error('getCurrentUser error:', error)
     return null

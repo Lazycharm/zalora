@@ -137,6 +137,7 @@ export default function ProfilePage() {
                             width={96}
                             height={96}
                             className="w-full h-full object-cover"
+                            onError={() => setFormData((prev) => ({ ...prev, avatar: '' }))}
                           />
                         ) : (
                           <Icon icon="solar:user-bold" className="size-12 text-primary" />

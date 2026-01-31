@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { createSupabaseRouteHandlerClient, applyCookiesToResponse } from '@/lib/supabase-server'
 
 export async function GET(req: NextRequest) {
-  const cookieStore = await cookies()
-  // Clear the auth token cookie (must use same path as when set)
-  cookieStore.set('auth-token', '', {
+  const response = NextResponse.redirect(new URL('/', req.url))
+
+  if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    try {
+      const { supabase, cookiesToSet } = await createSupabaseRouteHandlerClient(req)
+      await supabase.auth.signOut()
+      applyCookiesToResponse(response, cookiesToSet)
+    } catch (e) {
+      console.warn('[LOGOUT] Supabase signOut failed:', e)
+    }
+  }
+
+  response.cookies.set('auth-token', '', {
     path: '/',
     maxAge: 0,
     httpOnly: true,
@@ -12,6 +23,5 @@ export async function GET(req: NextRequest) {
     sameSite: 'lax',
   })
 
-  // Redirect to home page
-  return NextResponse.redirect(new URL('/', req.url))
+  return response
 }

@@ -1,12 +1,11 @@
-import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
 import { getCurrentUser } from '@/lib/auth'
+import { SessionGate } from '@/components/session-gate'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Seller layout: auth runs in Node so cookies are read reliably.
- * Redirects to login with ?redirect=<path> so user returns here after signing in.
+ * Seller layout: auth runs in Node. If server didn't get the cookie (e.g. Netlify),
+ * SessionGate gives the client a chance to send it so we don't log the user out.
  */
 export default async function SellerLayout({
   children,
@@ -15,12 +14,9 @@ export default async function SellerLayout({
 }) {
   const user = await getCurrentUser()
 
-  if (!user) {
-    const headersList = await headers()
-    const pathname = headersList.get('x-pathname') ?? '/seller'
-    const safeRedirect = pathname.startsWith('/seller') ? pathname : '/seller'
-    redirect('/auth/login?redirect=' + encodeURIComponent(safeRedirect))
+  if (user) {
+    return <>{children}</>
   }
 
-  return <>{children}</>
+  return <SessionGate>{children}</SessionGate>
 }

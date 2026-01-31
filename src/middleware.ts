@@ -1,86 +1,97 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
+import { createServerClient } from '@supabase/ssr'
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'zalora-secret-key'
 )
 
-// Protected routes checked in middleware (Edge - token only)
-// /account/* and /seller/* are NOT here: auth is done in layout/pages (Node) so cookies work
 const protectedRoutes = ['/checkout']
-
-// Admin routes that require admin/manager role
 const adminRoutes = ['/admin']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const token = request.cookies.get('auth-token')?.value
+  let response = NextResponse.next({ request })
 
   if (pathname === '/maintenance') {
-    return NextResponse.next()
+    return response
   }
 
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
-  )
-  const isAdminRoute = adminRoutes.some((route) =>
-    pathname.startsWith(route)
-  )
+  const isProtectedRoute = protectedRoutes.some((r) => pathname.startsWith(r))
+  const isAdminRoute = adminRoutes.some((r) => pathname.startsWith(r))
 
-  // /account/* and /seller/*: let through; layout/pages check auth in Node (cookies work)
+  // Refresh Supabase Auth session (required so Server Components get the session on Netlify)
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    try {
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        {
+          cookies: {
+            getAll() {
+              return request.cookies.getAll()
+            },
+            setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                const opts = (options ?? {}) as { maxAge?: number; path?: string; httpOnly?: boolean; secure?: boolean; sameSite?: string }
+                response.cookies.set(name, value, {
+                  path: opts.path ?? '/',
+                  maxAge: opts.maxAge ?? 60 * 60 * 24 * 7,
+                  httpOnly: opts.httpOnly ?? true,
+                  secure: opts.secure ?? process.env.NODE_ENV === 'production',
+                  sameSite: (opts.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
+                })
+              })
+            },
+          },
+        }
+      )
+      await supabase.auth.getUser()
+    } catch (e) {
+      // Ignore; auth will be checked in layout/API
+    }
+  }
+
   if (pathname.startsWith('/account') || pathname.startsWith('/seller')) {
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set('x-pathname', pathname)
-    return NextResponse.next({ request: { headers: requestHeaders } })
+    const res = NextResponse.next({ request: { headers: requestHeaders } })
+    response.cookies.getAll().forEach((c) => res.cookies.set(c.name, c.value))
+    return res
   }
 
   if (!isProtectedRoute && !isAdminRoute) {
-    return NextResponse.next()
+    return response
   }
+
+  const token = request.cookies.get('auth-token')?.value
 
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+    const redirectResponse = NextResponse.redirect(loginUrl)
+    response.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value))
+    return redirectResponse
   }
 
   try {
-    // Verify token
     const { payload } = await jwtVerify(token, JWT_SECRET)
-    
-    // Check if token is expired
     if (payload.exp && payload.exp < Date.now() / 1000) {
-      const response = NextResponse.redirect(new URL('/auth/login', request.url))
-      response.cookies.set('auth-token', '', { path: '/', maxAge: 0 })
-      return response
+      const redirectResponse = NextResponse.redirect(new URL('/auth/login', request.url))
+      redirectResponse.cookies.set('auth-token', '', { path: '/', maxAge: 0 })
+      response.cookies.getAll().forEach((c) => { if (c.name !== 'auth-token') redirectResponse.cookies.set(c.name, c.value) })
+      return redirectResponse
     }
-    
-    // For admin routes, check role
-    if (isAdminRoute) {
-      if (payload.role !== 'ADMIN' && payload.role !== 'MANAGER') {
-        return NextResponse.redirect(new URL('/', request.url))
-      }
+    if (isAdminRoute && payload.role !== 'ADMIN' && payload.role !== 'MANAGER') {
+      return NextResponse.redirect(new URL('/', request.url))
     }
-
-    return NextResponse.next()
-  } catch (error) {
-    // Check if it's a JWT expiration error
-    const isExpired = error instanceof Error && (
-      error.message.includes('expired') || 
-      error.message.includes('ExpirationTime')
-    )
-    
-    if (isExpired) {
-      const response = NextResponse.redirect(new URL('/auth/login', request.url))
-      response.cookies.set('auth-token', '', { path: '/', maxAge: 0 })
-      return response
-    }
-
-    // For other errors (malformed token, wrong secret, etc.), redirect and clear cookie
-    const response = NextResponse.redirect(new URL('/auth/login', request.url))
-    response.cookies.set('auth-token', '', { path: '/', maxAge: 0 })
     return response
+  } catch (error) {
+    const redirectResponse = NextResponse.redirect(new URL('/auth/login', request.url))
+    redirectResponse.cookies.set('auth-token', '', { path: '/', maxAge: 0 })
+    response.cookies.getAll().forEach((c) => { if (c.name !== 'auth-token') redirectResponse.cookies.set(c.name, c.value) })
+    return redirectResponse
   }
 }
 

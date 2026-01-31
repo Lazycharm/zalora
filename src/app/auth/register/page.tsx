@@ -55,8 +55,8 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Registration failed')
       }
 
-      // Fetch user data
-      const userRes = await fetch('/api/auth/me')
+      // Fetch user data (credentials so Supabase/auth cookies are sent)
+      const userRes = await fetch('/api/auth/me', { credentials: 'include' })
       const userData = await userRes.json()
       
       if (userRes.ok && userData.user) {

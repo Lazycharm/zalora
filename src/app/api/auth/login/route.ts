@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { login } from '@/lib/auth'
+import { createSupabaseRouteHandlerClient, applyCookiesToResponse } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { email, password } = body
@@ -13,45 +15,54 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if Supabase is configured
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('[LOGIN] Supabase not configured')
       return NextResponse.json(
-        { 
-          error: 'Database not configured. Please set Supabase environment variables.',
-          code: 'DATABASE_NOT_CONFIGURED'
-        },
+        { error: 'Database not configured. Please set Supabase environment variables.', code: 'DATABASE_NOT_CONFIGURED' },
         { status: 503 }
       )
     }
 
-    console.log(`[LOGIN] Attempting login for: ${email}`)
-    const result = await login(email, password)
+    const hasAnonKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    if (!result.success || !result.user) {
-      console.log(`[LOGIN] Failed: ${result.error}`)
-      
-      // Provide more helpful error message
-      let errorMessage = result.error || 'Invalid email or password'
-      let statusCode = 401
-      
-      // If database connection error, return 503
-      if (errorMessage.includes('Database connection') || errorMessage.includes('Supabase')) {
-        statusCode = 503
-        errorMessage = 'Database connection error. Please check your Supabase configuration.'
+    // 1) Try Supabase Auth (email provider) – sessions work on Netlify via @supabase/ssr cookies
+    if (hasAnonKey) {
+      try {
+        const { supabase, cookiesToSet } = await createSupabaseRouteHandlerClient(request)
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
+        if (!error && data?.user) {
+          const { data: appUser } = await supabaseAdmin
+            .from('users')
+            .select('id, email, name, role')
+            .eq('id', data.user.id)
+            .single()
+
+          const response = NextResponse.json({
+            success: true,
+            user: appUser ? { id: appUser.id, email: appUser.email, name: appUser.name, role: appUser.role } : { id: data.user.id, email: data.user.email ?? email, name: data.user.user_metadata?.name ?? '', role: 'USER' },
+          })
+          applyCookiesToResponse(response, cookiesToSet)
+          return response
+        }
+        if (error?.message && !error.message.toLowerCase().includes('invalid') && !error.message.toLowerCase().includes('credentials')) {
+          const res = NextResponse.json({ error: error.message }, { status: 401 })
+          applyCookiesToResponse(res, cookiesToSet)
+          return res
+        }
+      } catch (e) {
+        console.warn('[LOGIN] Supabase Auth attempt failed, trying legacy:', e)
       }
-      
-      return NextResponse.json(
-        { error: errorMessage },
-        { status: statusCode }
-      )
     }
 
-    console.log(`[LOGIN] Success: ${email} (${result.user.role})`)
-    return NextResponse.json({ 
-      success: true,
-      user: result.user 
-    })
+    // 2) Legacy JWT login (existing users without Supabase Auth)
+    const result = await login(email, password)
+    if (!result.success || !result.user) {
+      const errorMessage = result.error || 'Invalid email or password'
+      const statusCode = errorMessage.includes('Database connection') || errorMessage.includes('Supabase') ? 503 : 401
+      return NextResponse.json({ error: errorMessage }, { status: statusCode })
+    }
+
+    return NextResponse.json({ success: true, user: result.user })
   } catch (error) {
     console.error('[LOGIN] Error:', error)
     return NextResponse.json(
