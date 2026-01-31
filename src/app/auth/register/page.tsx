@@ -58,7 +58,9 @@ export default function RegisterPage() {
       }
 
       if (!res.ok) {
-        const message = data.error || (res.status === 400 ? 'Invalid request. Check your details and try again.' : 'Registration failed')
+        const message =
+          data.error ||
+          (res.status === 429 ? 'Too many attempts. Please wait a few minutes and try again.' : res.status === 400 ? 'Invalid request. Check your details and try again.' : 'Registration failed')
         throw new Error(message)
       }
 

@@ -101,6 +101,12 @@ export async function POST(request: NextRequest) {
         if (error?.message?.toLowerCase().includes('already registered') || error?.message?.toLowerCase().includes('already exists')) {
           return NextResponse.json({ error: 'Email already registered' }, { status: 400 })
         }
+        if (error?.message?.toLowerCase().includes('rate limit') || error?.message?.toLowerCase().includes('rate_limit')) {
+          return NextResponse.json(
+            { error: 'Too many sign-up attempts. Please wait a few minutes and try again.' },
+            { status: 429 }
+          )
+        }
         if (error) {
           return NextResponse.json({ error: error.message }, { status: 400 })
         }
