@@ -64,8 +64,8 @@ export default function RegisterPage() {
 
       // Registration succeeded — use user from response (don't rely on /api/auth/me
       // which can fail to see the new session on Netlify/serverless)
-      if (data.user) {
-        setUser(data.user)
+      if (data.user && typeof data.user === 'object' && 'id' in data.user && 'email' in data.user && 'name' in data.user && 'role' in data.user) {
+        setUser(data.user as Parameters<typeof setUser>[0])
       }
       toast.success('Account created successfully!')
       router.push('/')
