@@ -9,8 +9,18 @@ const SUPABASE_AUTH_PASSWORD_PLACEHOLDER = '$supabase-auth$'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { name, email, password } = body
+    let body: { name?: string; email?: string; password?: string }
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid request body. Please try again.' },
+        { status: 400 }
+      )
+    }
+    const name = typeof body?.name === 'string' ? body.name.trim() : ''
+    const email = typeof body?.email === 'string' ? body.email.trim() : ''
+    const password = typeof body?.password === 'string' ? body.password : ''
 
     if (!name || !email || !password) {
       return NextResponse.json(
