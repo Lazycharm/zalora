@@ -72,10 +72,39 @@ export function NotificationsDropdown({ variant = 'user' }: NotificationsDropdow
   useEffect(() => {
     fetchNotifications()
 
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000)
+    const POLL_VISIBLE_MS = 45000
+    const POLL_HIDDEN_MS = 120000
+    let intervalMs = POLL_VISIBLE_MS
+    let intervalId: ReturnType<typeof setInterval>
 
-    return () => clearInterval(interval)
+    const schedule = () => {
+      if (intervalId) clearInterval(intervalId)
+      intervalId = setInterval(fetchNotifications, intervalMs)
+    }
+
+    schedule()
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        intervalMs = POLL_VISIBLE_MS
+        fetchNotifications()
+      } else {
+        intervalMs = POLL_HIDDEN_MS
+      }
+      schedule()
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', fetchNotifications)
+    const onRefresh = () => fetchNotifications()
+    window.addEventListener('notifications-refresh', onRefresh)
+
+    return () => {
+      clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', fetchNotifications)
+      window.removeEventListener('notifications-refresh', onRefresh)
+    }
   }, [])
 
   useEffect(() => {

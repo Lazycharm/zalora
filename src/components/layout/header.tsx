@@ -108,6 +108,12 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
+                    <Link href="/account/settings">
+                      <Icon icon="solar:settings-linear" className="mr-2 size-4" />
+                      Account settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link href="/account/orders">
                       <Icon icon="solar:box-linear" className="mr-2 size-4" />
                       Orders

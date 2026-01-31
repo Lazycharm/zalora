@@ -4,13 +4,19 @@ import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useUserStore } from '@/lib/store'
 
+const PROTECTED_PREFIXES = ['/account', '/seller', '/checkout']
+
+function isProtectedRoute(pathname: string | null) {
+  if (!pathname) return false
+  return PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))
+}
+
 export function AuthSync() {
   const pathname = usePathname()
   const setUser = useUserStore((state) => state.setUser)
   const clearUser = useUserStore((state) => state.clearUser)
 
   useEffect(() => {
-    // Skip auth check for auth pages and public pages
     if (
       pathname?.startsWith('/auth/') ||
       pathname === '/' ||
@@ -21,25 +27,18 @@ export function AuthSync() {
       return
     }
 
-    // Check if user is still authenticated
     const checkAuth = async () => {
       try {
-        const res = await fetch('/api/auth/me', {
-          credentials: 'include',
-        })
-        
+        const res = await fetch('/api/auth/me', { credentials: 'include' })
         const data = await res.json()
-        
+
         if (res.ok && data.user) {
-          // User is authenticated, sync state
           setUser(data.user)
-        } else {
-          // User is not authenticated, clear state
+        } else if (!isProtectedRoute(pathname)) {
           clearUser()
         }
-      } catch (error) {
-        // On error, don't clear user (might be network issue)
-        console.error('Auth check error:', error)
+      } catch {
+        // Don't clear user on network error; server/middleware will redirect if needed
       }
     }
 

@@ -68,6 +68,7 @@ export function ChatWidget() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: question }),
+        credentials: 'include',
       })
 
       const data = await res.json()
@@ -75,13 +76,12 @@ export function ChatWidget() {
       setTimeout(() => {
         const botMessage: Message = {
           id: (Date.now() + 1).toString(),
-          text: data.response,
+          text: res.ok && data.response ? data.response : "I'm sorry, something went wrong. Would you like to create a support ticket?",
           isBot: true,
           timestamp: new Date(),
         }
         setMessages((prev) => [...prev, botMessage])
-        
-        if (data.needsEscalation) {
+        if (data.needsEscalation || !res.ok) {
           setShowEscalation(true)
         }
       }, 500)
@@ -136,6 +136,7 @@ export function ChatWidget() {
           message: ticketForm.message,
           priority: 'MEDIUM',
         }),
+        credentials: 'include',
       })
 
       const data = await res.json()

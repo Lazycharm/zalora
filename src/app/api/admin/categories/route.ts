@@ -12,12 +12,7 @@ export async function GET(req: NextRequest) {
 
     const { data: categories, error } = await supabaseAdmin
       .from('categories')
-      .select(`
-        *,
-        parent:categories!parentId (
-          name
-        )
-      `)
+      .select('*')
       .order('sortOrder', { ascending: true })
 
     if (error) {

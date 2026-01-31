@@ -6,12 +6,7 @@ export const dynamic = 'force-dynamic'
 async function getCategories() {
   const { data: categories, error } = await supabaseAdmin
     .from('categories')
-    .select(`
-      *,
-      parent:categories!categories_parentId_fkey (
-        name
-      )
-    `)
+    .select('*')
     .order('sortOrder', { ascending: true })
 
   if (error) {
