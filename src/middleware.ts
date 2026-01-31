@@ -6,12 +6,9 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'zalora-secret-key'
 )
 
-// Protected routes that require authentication
-const protectedRoutes = [
-  '/account',
-  '/checkout',
-  '/seller',
-]
+// Protected routes checked in middleware (Edge - token only)
+// /account/* is NOT here: auth is done in account layout (Node) so cookies work on Netlify
+const protectedRoutes = ['/checkout', '/seller']
 
 // Admin routes that require admin/manager role
 const adminRoutes = ['/admin']
@@ -20,15 +17,10 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get('auth-token')?.value
 
-  // Skip maintenance check - will be handled by layout component for better performance
-  // Middleware should only handle auth, not slow database/API calls
-
-  // Allow access to maintenance page
   if (pathname === '/maintenance') {
     return NextResponse.next()
   }
 
-  // Check if route is protected
   const isProtectedRoute = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   )
@@ -36,12 +28,17 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(route)
   )
 
-  // If not a protected route, continue
+  // /account/*: let through; account layout will check auth in Node (cookies work on Netlify)
+  if (pathname.startsWith('/account')) {
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('x-pathname', pathname)
+    return NextResponse.next({ request: { headers: requestHeaders } })
+  }
+
   if (!isProtectedRoute && !isAdminRoute) {
     return NextResponse.next()
   }
 
-  // If no token, redirect to login (don't clear cookie - user might have different domain/subdomain)
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
