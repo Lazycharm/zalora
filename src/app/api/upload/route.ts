@@ -4,8 +4,21 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { supabaseAdmin } from '@/lib/supabase'
 
-// Create a bucket named "uploads" in Supabase Dashboard → Storage, set to Public.
+// Bucket name for Supabase Storage. Created automatically if missing.
 const UPLOAD_BUCKET = 'uploads'
+
+async function ensureUploadBucketExists() {
+  const { data: buckets } = await supabaseAdmin.storage.listBuckets()
+  const exists = buckets?.some((b) => b.name === UPLOAD_BUCKET)
+  if (exists) return
+  const { error } = await supabaseAdmin.storage.createBucket(UPLOAD_BUCKET, {
+    public: true,
+  })
+  if (error) {
+    console.error('Failed to create uploads bucket:', error)
+    throw error
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,17 +47,33 @@ export async function POST(req: NextRequest) {
 
     // Prefer Supabase Storage (works on Netlify/serverless; filesystem is read-only there)
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-        .from(UPLOAD_BUCKET)
-        .upload(storagePath, buffer, {
-          contentType: file.type,
-          upsert: false,
-        })
+      let uploadData: { path: string } | null = null
+      let uploadError: { message: string } | null = null
 
-      if (uploadError) {
+      const doUpload = () =>
+        supabaseAdmin.storage
+          .from(UPLOAD_BUCKET)
+          .upload(storagePath, buffer, {
+            contentType: file.type,
+            upsert: false,
+          })
+
+      const result = await doUpload()
+      uploadData = result.data
+      uploadError = result.error
+
+      // If bucket missing, create it and retry once
+      if (uploadError && (uploadError.message?.toLowerCase().includes('bucket') || uploadError.message?.toLowerCase().includes('not found'))) {
+        await ensureUploadBucketExists()
+        const retry = await doUpload()
+        uploadData = retry.data
+        uploadError = retry.error
+      }
+
+      if (uploadError || !uploadData) {
         console.error('Supabase storage upload error:', uploadError)
         return NextResponse.json(
-          { error: uploadError.message || 'Storage upload failed' },
+          { error: uploadError?.message || 'Storage upload failed. Create an "uploads" bucket in Supabase Dashboard → Storage (public).' },
           { status: 500 }
         )
       }

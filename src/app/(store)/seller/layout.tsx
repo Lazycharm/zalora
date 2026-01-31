@@ -1,11 +1,11 @@
 import { getCurrentUser } from '@/lib/auth'
-import { SessionGate } from '@/components/session-gate'
+import { SessionCheckAndRefresh } from '@/components/session-check-and-refresh'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Seller layout: auth runs in Node. If server didn't get the cookie (e.g. Netlify),
- * SessionGate gives the client a chance to send it so we don't log the user out.
+ * Seller layout: if server didn't get the cookie (e.g. Netlify), don't run the page —
+ * run SessionCheckAndRefresh and router.refresh() so the next request can send cookies.
  */
 export default async function SellerLayout({
   children,
@@ -18,5 +18,5 @@ export default async function SellerLayout({
     return <>{children}</>
   }
 
-  return <SessionGate>{children}</SessionGate>
+  return <SessionCheckAndRefresh />
 }
