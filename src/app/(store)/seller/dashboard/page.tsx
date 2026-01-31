@@ -137,18 +137,10 @@ export default async function SellerDashboardPage() {
     redirect('/auth/login')
   }
 
-  if (!currentUser.canSell) {
-    redirect('/account')
-  }
-
   const { shop, canAccessShop } = await getSellerShopAccess(currentUser.id)
 
   if (!shop) {
     redirect('/seller/create-shop')
-  }
-
-  if (!canAccessShop) {
-    redirect('/seller/verification-status')
   }
 
   const stats = await getSellerStats(currentUser.id, shop?.id || null)

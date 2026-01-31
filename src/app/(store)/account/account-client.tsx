@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { formatPrice } from '@/lib/utils'
+import { useLanguage } from '@/contexts/language-context'
 
 interface User {
   id: string
@@ -15,6 +16,7 @@ interface User {
   shop: {
     id: string
     name: string
+    status?: string
   } | null
 }
 
@@ -28,31 +30,36 @@ interface AccountClientProps {
 }
 
 export function AccountClient({ user, stats }: AccountClientProps) {
+  const { t } = useLanguage()
+  const hasApprovedShop = !!(user.shop && user.shop.status === 'ACTIVE')
+
   // Menu order and styling from reference: account-management/account-management.tsx
-  const menuItems: Array<{ icon: string; label: string; href: string; color: string; show: boolean; badge?: number }> = [
-    { icon: 'solar:megaphone-bold', label: 'Wholesale Management', href: '/account/wholesale', color: 'text-chart-1', show: user.canSell },
-    { icon: 'solar:shop-bold', label: 'Shop Details', href: user.shop ? '/seller/shop' : '/seller/create-shop', color: 'text-chart-2', show: user.canSell },
-    { icon: 'solar:box-bold', label: 'Product Management', href: '/seller/products', color: 'text-chart-2', show: user.canSell && !!user.shop },
-    { icon: 'solar:bill-list-bold', label: 'Store Orders', href: '/seller/orders', color: 'text-cyan-500', show: user.canSell && !!user.shop, badge: (stats.sellerOrdersCount ?? 0) || undefined },
-    { icon: 'solar:document-text-bold', label: 'Billing records', href: '/account/billing', color: 'text-chart-3', show: true },
-    { icon: 'solar:map-point-bold', label: 'Delivery address', href: '/account/addresses', color: 'text-destructive', show: true },
-    { icon: 'solar:heart-bold', label: 'Shop Collection', href: '/account/favorites', color: 'text-chart-2', show: true },
-    { icon: 'solar:headset-bold', label: 'Service Center', href: '/account/support', color: 'text-destructive', show: true },
-    { icon: 'solar:wallet-bold', label: 'Wallet Management', href: '/account/wallet', color: 'text-chart-4', show: true },
-    { icon: 'solar:lock-password-bold', label: 'Login Password', href: '/account/password', color: 'text-cyan-500', show: true },
-    { icon: 'solar:shield-keyhole-bold', label: 'Payment password', href: '/account/password', color: 'text-chart-3', show: true },
-    { icon: 'solar:file-download-bold', label: 'Download the app', href: '#', color: 'text-chart-4', show: true },
-    { icon: 'solar:settings-bold', label: 'Set up', href: '/account/settings', color: 'text-cyan-500', show: true },
+  const menuItems: Array<{ icon: string; labelKey: string; href: string; color: string; show: boolean; badge?: number; inactive?: boolean }> = [
+    { icon: 'solar:megaphone-bold', labelKey: 'wholesaleManagement', href: '/account/wholesale', color: 'text-chart-1', show: user.canSell, inactive: !hasApprovedShop },
+    { icon: 'solar:shop-bold', labelKey: 'applyForShop', href: '/seller/create-shop', color: 'text-chart-2', show: user.canSell },
+    { icon: 'solar:chart-2-bold', labelKey: 'sellerDashboard', href: '/seller/dashboard', color: 'text-chart-2', show: user.canSell, inactive: !hasApprovedShop },
+    { icon: 'solar:shop-bold', labelKey: 'shopDetails', href: '/seller/shop', color: 'text-chart-2', show: user.canSell && !!user.shop },
+    { icon: 'solar:box-bold', labelKey: 'productManagement', href: '/seller/products', color: 'text-chart-2', show: user.canSell && !!user.shop },
+    { icon: 'solar:bill-list-bold', labelKey: 'storeOrders', href: '/seller/orders', color: 'text-cyan-500', show: user.canSell && !!user.shop, badge: (stats.sellerOrdersCount ?? 0) || undefined },
+    { icon: 'solar:document-text-bold', labelKey: 'billingRecords', href: '/account/billing', color: 'text-chart-3', show: true },
+    { icon: 'solar:map-point-bold', labelKey: 'deliveryAddress', href: '/account/addresses', color: 'text-destructive', show: true },
+    { icon: 'solar:heart-bold', labelKey: 'shopCollection', href: '/account/favorites', color: 'text-chart-2', show: true },
+    { icon: 'solar:headset-bold', labelKey: 'serviceCenter', href: '/account/support', color: 'text-destructive', show: true },
+    { icon: 'solar:wallet-bold', labelKey: 'walletManagement', href: '/account/wallet', color: 'text-chart-4', show: true },
+    { icon: 'solar:lock-password-bold', labelKey: 'loginPassword', href: '/account/password', color: 'text-cyan-500', show: true },
+    { icon: 'solar:shield-keyhole-bold', labelKey: 'paymentPassword', href: '/account/password', color: 'text-chart-3', show: true },
+    { icon: 'solar:file-download-bold', labelKey: 'downloadTheApp', href: '#', color: 'text-chart-4', show: true },
+    { icon: 'solar:settings-bold', labelKey: 'setUp', href: '/account/settings', color: 'text-cyan-500', show: true },
   ]
 
   const visibleMenuItems = menuItems.filter((item) => item.show)
 
   return (
     <div className="flex flex-col min-h-screen bg-background pb-20 font-sans text-foreground">
-      {/* Header - matches reference */}
-      <header className="sticky top-0 z-10 flex items-center justify-center h-14 bg-primary px-4 shadow-sm lg:hidden">
+      {/* Header - matches reference (account-management (1)/account-management.tsx): always visible */}
+      <header className="sticky top-0 z-10 flex items-center justify-center h-14 bg-primary px-4 shadow-sm">
         <h1 className="text-lg font-semibold text-primary-foreground font-heading">
-          Account Management
+          {t('accountManagement')}
         </h1>
         <Link href="/account/settings" className="absolute right-4 text-primary-foreground" aria-label="Settings">
           <Icon icon="solar:globe-linear" className="size-6" />
@@ -60,10 +67,10 @@ export function AccountClient({ user, stats }: AccountClientProps) {
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Profile Section - matches reference layout */}
+        {/* Profile Section - matches reference layout exactly */}
         <div className="flex items-center justify-between p-4 bg-card mb-2">
           <div className="flex items-center gap-3">
-            <div className="size-14 rounded-full overflow-hidden border border-border bg-primary/10 flex items-center justify-center">
+            <div className="size-14 rounded-full overflow-hidden border border-border flex items-center justify-center bg-muted/50">
               {user.avatar ? (
                 <img src={user.avatar} alt={user.name} className="size-full object-cover" />
               ) : (
@@ -87,19 +94,19 @@ export function AccountClient({ user, stats }: AccountClientProps) {
         <div className="grid grid-cols-4 bg-card py-4 mb-2">
           <Link href="/account/favorites" className="flex flex-col items-center gap-1 border-r border-transparent">
             <span className="text-base font-semibold">{stats.favorites}</span>
-            <span className="text-[10px] text-muted-foreground text-center px-1">My Collection</span>
+            <span className="text-[10px] text-muted-foreground text-center px-1">{t('myCollection')}</span>
           </Link>
           <div className="flex flex-col items-center gap-1 border-r border-transparent">
             <span className="text-base font-semibold">0</span>
-            <span className="text-[10px] text-muted-foreground text-center px-1">Shop Collection</span>
+            <span className="text-[10px] text-muted-foreground text-center px-1">{t('shopCollection')}</span>
           </div>
           <Link href="/account/orders" className="flex flex-col items-center gap-1 border-r border-transparent">
             <span className="text-base font-semibold">{stats.orders}</span>
-            <span className="text-[10px] text-muted-foreground text-center px-1">My Browse</span>
+            <span className="text-[10px] text-muted-foreground text-center px-1">{t('myBrowse')}</span>
           </Link>
           <div className="flex flex-col items-center gap-1">
             <span className="text-base font-bold text-foreground">{formatPrice(user.balance)}</span>
-            <span className="text-[10px] text-muted-foreground text-center px-1">Account Balance</span>
+            <span className="text-[10px] text-muted-foreground text-center px-1">{t('accountBalance')}</span>
           </div>
         </div>
 
@@ -142,50 +149,73 @@ export function AccountClient({ user, stats }: AccountClientProps) {
         <div className="flex bg-card py-3 mb-2 divide-x divide-border">
           <Link href="/account/wallet/topup" className="flex-1 flex items-center justify-center gap-2 py-1">
             <Icon icon="solar:download-linear" className="size-5 text-muted-foreground" />
-            <span className="text-sm font-medium">top up</span>
+            <span className="text-sm font-medium">{t('topUp')}</span>
           </Link>
           <Link href="/account/wallet/withdraw" className="flex-1 flex items-center justify-center gap-2 py-1">
             <Icon icon="solar:upload-linear" className="size-5 text-muted-foreground" />
-            <span className="text-sm font-medium">Withdrawal</span>
+            <span className="text-sm font-medium">{t('withdrawal')}</span>
           </Link>
         </div>
 
-        {/* Apply for a store / Verification - Zalora-specific, before main menu */}
-        {!user.shop && user.canSell && (
-          <div className="bg-card flex flex-col mb-px">
-            <Link href="/seller/create-shop" className="flex items-center px-4 py-3.5 border-b border-border/50 active:bg-muted/30">
-              <Icon icon="solar:shop-bold" className="size-6 text-chart-1 mr-3" />
-              <span className="flex-1 text-sm font-medium">Apply for a store</span>
-              <Icon icon="solar:alt-arrow-right-linear" className="size-4 text-muted-foreground" />
-            </Link>
-            <Link href="/seller/verification-status" className="flex items-center px-4 py-3.5 active:bg-muted/30">
-              <Icon icon="solar:verified-check-bold" className="size-6 text-cyan-500 mr-3" />
-              <span className="flex-1 text-sm font-medium">Verification status</span>
-              <Icon icon="solar:alt-arrow-right-linear" className="size-4 text-muted-foreground" />
-            </Link>
-          </div>
-        )}
-
-        {/* Menu Items - order and labels from reference */}
+        {/* Menu Items - Apply for shop first (above Billing records), then rest */}
         <div className="bg-card flex flex-col">
-          {visibleMenuItems.map((item, index) => (
-            <Link
-              key={item.href + index}
-              href={item.href}
-              className={`flex items-center px-4 py-3.5 active:bg-muted/30 ${
-                index < visibleMenuItems.length - 1 ? 'border-b border-border/50' : ''
-              }`}
-            >
-              <Icon icon={item.icon} className={`size-6 ${item.color} mr-3`} />
-              <span className="flex-1 text-sm font-medium">{item.label}</span>
-              {item.badge != null && item.badge > 0 && (
-                <span className="mr-2 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-medium flex items-center justify-center">
-                  {item.badge}
+          {/* Open a shop — KYC-linked, above Billing records; any user without a shop can apply */}
+          {!user.shop && (
+            <>
+              <div className="px-4 py-3 bg-muted/40 border-b border-border/50">
+                <h2 className="text-sm font-semibold text-foreground">{t('openAShop')}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t('identityVerificationKycMessage')}
+                </p>
+              </div>
+              <a href="/seller/create-shop" className="flex items-center px-4 py-3.5 border-b border-border/50 active:bg-muted/30">
+                <Icon icon="solar:shop-bold" className="size-6 text-chart-1 mr-3" />
+                <span className="flex-1 text-sm font-medium">Apply for a shop</span>
+                <span className="text-xs text-muted-foreground mr-2 hidden sm:inline">KYC required</span>
+                <Icon icon="solar:alt-arrow-right-linear" className="size-4 text-muted-foreground" />
+              </a>
+              <a href="/seller/verification-status" className="flex items-center px-4 py-3.5 border-b border-border/50 active:bg-muted/30">
+                <Icon icon="solar:verified-check-bold" className="size-6 text-cyan-500 mr-3" />
+                <span className="flex-1 text-sm font-medium">{t('verificationStatusCaption')}</span>
+                <Icon icon="solar:alt-arrow-right-linear" className="size-4 text-muted-foreground" />
+              </a>
+            </>
+          )}
+          {visibleMenuItems.map((item, index) =>
+            item.inactive ? (
+              <div
+                key={item.href + index}
+                className={`flex items-center px-4 py-3.5 opacity-60 cursor-not-allowed ${
+                  index < visibleMenuItems.length - 1 ? 'border-b border-border/50' : ''
+                }`}
+                aria-disabled
+              >
+                <Icon icon={item.icon} className={`size-6 ${item.color} mr-3`} />
+                <span className="flex-1">
+                  <span className="text-sm font-medium block">{t(item.labelKey)}</span>
+                  <span className="text-xs text-muted-foreground">{t('approveShopToAccess')}</span>
                 </span>
-              )}
-              <Icon icon="solar:alt-arrow-right-linear" className="size-4 text-muted-foreground" />
-            </Link>
-          ))}
+                <Icon icon="solar:alt-arrow-right-linear" className="size-4 text-muted-foreground/50" />
+              </div>
+            ) : (
+              <Link
+                key={item.href + index}
+                href={item.href}
+                className={`flex items-center px-4 py-3.5 active:bg-muted/30 ${
+                  index < visibleMenuItems.length - 1 ? 'border-b border-border/50' : ''
+                }`}
+              >
+                <Icon icon={item.icon} className={`size-6 ${item.color} mr-3`} />
+                <span className="flex-1 text-sm font-medium">{t(item.labelKey)}</span>
+                {item.badge != null && item.badge > 0 && (
+                  <span className="mr-2 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-medium flex items-center justify-center">
+                    {item.badge}
+                  </span>
+                )}
+                <Icon icon="solar:alt-arrow-right-linear" className="size-4 text-muted-foreground" />
+              </Link>
+            )
+          )}
 
           {(user.role === 'ADMIN' || user.role === 'MANAGER') && (
             <Link href="/admin" className="flex items-center px-4 py-3.5 border-b border-border/50 active:bg-muted/30">
@@ -197,7 +227,7 @@ export function AccountClient({ user, stats }: AccountClientProps) {
 
           <Link href="/auth/logout" className="flex items-center px-4 py-3.5 active:bg-muted/30">
             <Icon icon="solar:logout-bold" className="size-6 text-chart-5 mr-3" />
-            <span className="flex-1 text-sm font-medium">Log out</span>
+            <span className="flex-1 text-sm font-medium">{t('logOut')}</span>
             <Icon icon="solar:alt-arrow-right-linear" className="size-4 text-muted-foreground" />
           </Link>
         </div>

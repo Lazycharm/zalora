@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { formatDateTime } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Notification {
   id: string
@@ -47,6 +48,7 @@ const typeColors: Record<string, string> = {
 }
 
 export function NotificationsDropdown({ variant = 'user' }: NotificationsDropdownProps) {
+  const { t } = useLanguage()
   const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -147,7 +149,7 @@ export function NotificationsDropdown({ variant = 'user' }: NotificationsDropdow
         toast.success('All notifications marked as read')
       }
     } catch (error) {
-      toast.error('Failed to mark all as read')
+      toast.error(t('failedToMarkAllAsRead'))
     } finally {
       setLoading(false)
     }
@@ -270,7 +272,7 @@ export function NotificationsDropdown({ variant = 'user' }: NotificationsDropdow
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href={notificationsPath} className="w-full text-center">
-                View all notifications
+                {t('viewAllNotifications')}
               </Link>
             </DropdownMenuItem>
           </>

@@ -19,7 +19,6 @@ export function AuthSync() {
   useEffect(() => {
     if (
       pathname?.startsWith('/auth/') ||
-      pathname === '/' ||
       pathname === '/maintenance' ||
       pathname?.startsWith('/products') ||
       pathname?.startsWith('/categories')

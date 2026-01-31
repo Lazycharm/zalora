@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Icon } from '@iconify/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import { useUserStore } from '@/lib/store'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const setUser = useUserStore((state) => state.setUser)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -61,13 +62,19 @@ export default function LoginPage() {
       if (userRes.ok && userData.user) {
         setUser(userData.user)
         toast.success('Welcome back!')
-        
-        // Redirect based on role
+
+        // Full page redirect so the next request receives the auth cookie
         if (userData.user.role === 'ADMIN' || userData.user.role === 'MANAGER') {
-          router.push('/admin')
-        } else {
-          router.push('/')
+          window.location.href = '/admin'
+          return
         }
+        const redirectTo = searchParams.get('redirect')
+        const safeRedirect =
+          redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//')
+            ? redirectTo
+            : '/'
+        window.location.href = safeRedirect
+        return
       } else {
         throw new Error('Failed to fetch user data')
       }

@@ -18,35 +18,49 @@ import { getInitials } from '@/lib/utils'
 import { LanguageSelector } from '@/components/language-selector'
 import { useLanguage } from '@/contexts/language-context'
 import { NotificationsDropdown } from '@/components/notifications-dropdown'
+import { useStorePageTitleValue } from '@/contexts/store-page-title-context'
 
 export function Header() {
   const { t } = useLanguage()
   const user = useUserStore((state) => state.user)
   const itemCount = useCartStore((state) => state.getItemCount())
   const setSearchOpen = useUIStore((state) => state.setSearchOpen)
+  const pageTitle = useStorePageTitleValue()
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white border-b border-gray-200/60 hidden lg:block">
       <div className="container mx-auto px-6">
         <div className="flex h-14 items-center justify-between gap-6">
-          {/* Logo - Left */}
-          <Link href="/" className="flex items-center flex-shrink-0">
-            <Image
-              src="/images/logo.png"
-              alt="ZALORA Fashion"
-              width={130}
-              height={36}
-              className="object-contain"
-              priority
-            />
-          </Link>
+          {/* Logo + optional shop name - Left */}
+          <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
+            <Link href="/" className="flex-shrink-0">
+              <Image
+                src="/images/logo.png"
+                alt="ZALORA Fashion"
+                width={130}
+                height={36}
+                className="object-contain"
+                priority
+              />
+            </Link>
+            {pageTitle ? (
+              <>
+                <span className="text-gray-300 font-light" aria-hidden>
+                  |
+                </span>
+                <span className="text-gray-700 font-medium text-sm truncate max-w-[180px] xl:max-w-[240px]" title={pageTitle}>
+                  {pageTitle}
+                </span>
+              </>
+            ) : null}
+          </div>
 
           {/* Search Bar - Center */}
           <div className="flex-1 flex items-center gap-2 max-w-2xl mx-6">
             <div className="flex-1 relative">
               <input
                 type="text"
-                placeholder="100% selected good products"
+                placeholder={t('searchPlaceholder')}
                 onClick={() => setSearchOpen(true)}
                 className="w-full px-4 py-2 pr-11 bg-gray-50/80 border border-gray-200 rounded-md text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:bg-white transition-colors"
                 readOnly
@@ -79,7 +93,13 @@ export function Header() {
             {/* Home */}
             <Link href="/" className="flex items-center gap-1.5 text-gray-700 hover:text-gray-900 transition-colors">
               <Icon icon="solar:home-2-linear" className="size-5" />
-              <span className="text-sm font-normal">Home</span>
+              <span className="text-sm font-normal">{t('home')}</span>
+            </Link>
+
+            {/* Categories */}
+            <Link href="/categories" className="flex items-center gap-1.5 text-gray-700 hover:text-gray-900 transition-colors">
+              <Icon icon="solar:widget-2-linear" className="size-5" />
+              <span className="text-sm font-normal">{t('categories')}</span>
             </Link>
 
             {/* Account */}
@@ -87,7 +107,14 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-1.5 text-gray-700 hover:text-gray-900 transition-colors px-2 py-1 rounded-md hover:bg-gray-50">
-                    <Icon icon="solar:user-circle-linear" className="size-5" />
+                    {user.avatar ? (
+                      <Avatar className="size-8">
+                        <AvatarImage src={user.avatar} alt={user.name} />
+                        <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <Icon icon="solar:user-circle-linear" className="size-5" />
+                    )}
                     <span className="text-sm font-normal">{user.name}</span>
                   </button>
                 </DropdownMenuTrigger>
@@ -104,7 +131,7 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <Link href="/account">
                       <Icon icon="solar:user-circle-linear" className="mr-2 size-4" />
-                      {t('account')}
+                      Account management
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -119,17 +146,25 @@ export function Header() {
                       Orders
                     </Link>
                   </DropdownMenuItem>
-                  {user.canSell && (
-                    <>
-                      <DropdownMenuSeparator />
+                  <>
+                    <DropdownMenuSeparator />
+                    {user.shop && user.shop.status === 'ACTIVE' ? (
                       <DropdownMenuItem asChild>
                         <Link href="/seller/dashboard">
                           <Icon icon="solar:shop-linear" className="mr-2 size-4" />
-                          Seller Dashboard
+                          {t('sellerDashboard')}
                         </Link>
                       </DropdownMenuItem>
-                    </>
-                  )}
+                    ) : (
+                      <DropdownMenuItem disabled className="opacity-60 cursor-not-allowed">
+                        <Icon icon="solar:shop-linear" className="mr-2 size-4" />
+                        <span className="flex flex-col items-start">
+                          <span>{t('sellerDashboard')}</span>
+                          <span className="text-xs font-normal text-muted-foreground">{t('approveShopToAccess')}</span>
+                        </span>
+                      </DropdownMenuItem>
+                    )}
+                  </>
                   {(user.role === 'ADMIN' || user.role === 'MANAGER') && (
                     <>
                       <DropdownMenuSeparator />
@@ -153,7 +188,7 @@ export function Header() {
             ) : (
               <Link href="/auth/login" className="flex items-center gap-1.5 text-gray-700 hover:text-gray-900 transition-colors">
                 <Icon icon="solar:user-circle-linear" className="size-5" />
-                <span className="text-sm font-normal">Account</span>
+                <span className="text-sm font-normal">{t('account')}</span>
               </Link>
             )}
 

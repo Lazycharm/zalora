@@ -25,9 +25,10 @@ export enum ShopStatus {
 }
 
 export enum ShopLevel {
-  BASIC = 'BASIC',
-  PREMIUM = 'PREMIUM',
-  ENTERPRISE = 'ENTERPRISE',
+  BRONZE = 'BRONZE',
+  SILVER = 'SILVER',
+  GOLD = 'GOLD',
+  PLATINUM = 'PLATINUM',
 }
 
 const JWT_SECRET = new TextEncoder().encode(
@@ -107,7 +108,9 @@ export async function getCurrentUser() {
             id,
             name,
             slug,
-            status
+            status,
+            level,
+            balance
           )
         `)
         .eq('id', session.userId)
@@ -127,7 +130,15 @@ export async function getCurrentUser() {
     if (user.status !== UserStatus.ACTIVE) return null
 
     const userSellingEnabled = settingResult.data?.value === 'true'
-    const shop = Array.isArray(user.shops) && user.shops.length > 0 ? user.shops[0] : null
+    // Supabase can return shops as array or (when single) as one object
+    const rawShops = user.shops
+    const shopRow =
+      Array.isArray(rawShops) && rawShops.length > 0
+        ? rawShops[0]
+        : rawShops && typeof rawShops === 'object' && rawShops !== null && 'id' in rawShops
+          ? rawShops
+          : null
+    const shop = shopRow
 
     return {
       id: user.id,
@@ -143,6 +154,8 @@ export async function getCurrentUser() {
         name: shop.name,
         slug: shop.slug,
         status: shop.status,
+        level: (shop as { level?: string }).level ?? 'BRONZE',
+        balance: Number((shop as { balance?: number }).balance ?? 0),
       } : null,
       isImpersonating: !!session.impersonatedBy,
       impersonatedBy: session.impersonatedBy,

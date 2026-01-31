@@ -30,6 +30,21 @@ export async function POST(
       throw error
     }
 
+    // Credit shop balance when order is paid and belongs to a shop
+    if (order?.shopId) {
+      const { data: shop } = await supabaseAdmin
+        .from('shops')
+        .select('balance')
+        .eq('id', order.shopId)
+        .single()
+      const currentBalance = Number(shop?.balance ?? 0)
+      const orderTotal = Number(order.total ?? 0)
+      await supabaseAdmin
+        .from('shops')
+        .update({ balance: currentBalance + orderTotal })
+        .eq('id', order.shopId)
+    }
+
     return NextResponse.json({
       message: 'Order payment approved successfully',
       order,

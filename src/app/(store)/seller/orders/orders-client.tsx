@@ -43,22 +43,38 @@ export function SellerOrdersClient({
   page,
   searchParams,
 }: SellerOrdersClientProps) {
-  return (
-    <div className="space-y-6 pb-20 lg:pb-0">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold font-heading">Store Orders</h1>
-          <p className="text-muted-foreground">Manage orders for your products</p>
-        </div>
-      </div>
+  const statusParam = searchParams?.status
+  const statusValue = Array.isArray(statusParam) ? statusParam[0] : statusParam
 
-      {/* Filters */}
-      <Card>
+  return (
+    <div className="flex flex-col min-h-screen bg-background pb-20 lg:pb-0">
+      <header className="sticky top-0 z-10 flex items-center h-14 bg-primary px-4 shadow-sm lg:hidden">
+        <Link href="/seller/dashboard" className="flex items-center gap-1.5 text-primary-foreground text-sm font-medium">
+          <Icon icon="solar:arrow-left-linear" className="size-6" aria-hidden />
+          <span>Back</span>
+        </Link>
+        <h1 className="flex-1 text-center text-lg font-semibold text-primary-foreground font-heading">Store Orders</h1>
+        <span className="w-14" />
+      </header>
+      <div className="flex-1 container mx-auto px-4 py-6 max-w-4xl space-y-6">
+        <div className="hidden lg:flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold font-heading">Store Orders</h1>
+            <p className="text-muted-foreground text-sm">Manage orders for your products</p>
+          </div>
+          <Link href="/seller/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground">
+            <Icon icon="solar:arrow-left-linear" className="size-5" />
+            <span>Back to Dashboard</span>
+          </Link>
+        </div>
+
+        {/* Filters */}
+        <Card>
         <CardContent className="p-4">
           <form method="get" className="flex flex-wrap gap-4">
             <select
               name="status"
-              defaultValue={searchParams.status || 'all'}
+              defaultValue={statusValue || 'all'}
               className="px-4 py-2 bg-input border border-border rounded-lg text-sm"
             >
               <option value="all">All Orders</option>
@@ -155,32 +171,31 @@ export function SellerOrdersClient({
         </div>
       )}
 
-      {/* Pagination */}
-      {pages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Link
-            href={`/seller/orders?page=${Math.max(1, page - 1)}`}
-            className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
-          >
-            <Button variant="outline" size="icon">
-              <Icon icon="solar:arrow-left-linear" className="size-4" />
-            </Button>
-          </Link>
-          
-          <span className="text-sm text-muted-foreground px-4">
-            Page {page} of {pages}
-          </span>
-          
-          <Link
-            href={`/seller/orders?page=${Math.min(pages, page + 1)}`}
-            className={page >= pages ? 'pointer-events-none opacity-50' : ''}
-          >
-            <Button variant="outline" size="icon">
-              <Icon icon="solar:arrow-right-linear" className="size-4" />
-            </Button>
-          </Link>
-        </div>
-      )}
+        {/* Pagination */}
+        {pages > 1 && (
+          <div className="flex items-center justify-center gap-2 pt-4">
+            <Link
+              href={`/seller/orders?page=${Math.max(1, page - 1)}${statusValue ? `&status=${statusValue}` : ''}`}
+              className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
+            >
+              <Button variant="outline" size="icon">
+                <Icon icon="solar:arrow-left-linear" className="size-4" />
+              </Button>
+            </Link>
+            <span className="text-sm text-muted-foreground px-4">
+              Page {page} of {pages}
+            </span>
+            <Link
+              href={`/seller/orders?page=${Math.min(pages, page + 1)}${statusValue ? `&status=${statusValue}` : ''}`}
+              className={page >= pages ? 'pointer-events-none opacity-50' : ''}
+            >
+              <Button variant="outline" size="icon">
+                <Icon icon="solar:arrow-right-linear" className="size-4" />
+              </Button>
+            </Link>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

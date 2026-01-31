@@ -123,15 +123,30 @@ export async function PATCH(
       updateData.deliveredAt = new Date(deliveredAt).toISOString()
     }
 
-    // Get order before update to check for status changes
+    // Get order before update to check for status changes and shopId
     const { data: oldOrder, error: oldOrderError } = await supabaseAdmin
       .from('orders')
-      .select('userId, status, paymentStatus, orderNumber')
+      .select('userId, shopId, status, paymentStatus, orderNumber, total')
       .eq('id', params.id)
       .single()
 
     if (oldOrderError || !oldOrder) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    // When payment is marked COMPLETED, credit shop balance if order has shopId
+    if (paymentStatus === 'COMPLETED' && oldOrder.paymentStatus !== 'COMPLETED' && oldOrder.shopId) {
+      const { data: shop } = await supabaseAdmin
+        .from('shops')
+        .select('balance')
+        .eq('id', oldOrder.shopId)
+        .single()
+      const currentBalance = Number(shop?.balance ?? 0)
+      const orderTotal = Number(oldOrder.total ?? 0)
+      await supabaseAdmin
+        .from('shops')
+        .update({ balance: currentBalance + orderTotal })
+        .eq('id', oldOrder.shopId)
     }
 
     // Update order

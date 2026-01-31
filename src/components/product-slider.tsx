@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { ProductCard } from './product-card'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Product {
   id: string
@@ -23,6 +24,7 @@ interface ProductSliderProps {
 }
 
 export function ProductSlider({ products, title, viewAllLink = '/products' }: ProductSliderProps) {
+  const { t } = useLanguage()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [showLeftArrow, setShowLeftArrow] = useState(false)
   const [showRightArrow, setShowRightArrow] = useState(true)
@@ -63,7 +65,7 @@ export function ProductSlider({ products, title, viewAllLink = '/products' }: Pr
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-lg text-gray-900">{title}</h3>
         <Link href={viewAllLink} className="text-sm text-blue-600 hover:text-blue-700 hover:underline font-normal transition-colors">
-          View All
+          {t('viewAll')}
         </Link>
       </div>
 

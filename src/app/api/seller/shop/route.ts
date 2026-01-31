@@ -11,18 +11,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if user can sell
+    // Any logged-in user can apply for a shop; check they don't already have one
     const { data: user } = await supabaseAdmin
       .from('users')
-      .select('canSell, shops (*)')
+      .select('shops (*)')
       .eq('id', session.userId)
       .single()
 
-    if (!user?.canSell) {
-      return NextResponse.json({ error: 'You do not have permission to create a shop' }, { status: 403 })
-    }
-
-    if (user.shops && Array.isArray(user.shops) && user.shops.length > 0) {
+    if (user?.shops && Array.isArray(user.shops) && user.shops.length > 0) {
       return NextResponse.json({ error: 'You already have a shop' }, { status: 400 })
     }
 

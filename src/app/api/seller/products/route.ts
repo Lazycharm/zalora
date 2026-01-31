@@ -20,11 +20,16 @@ export async function POST(req: NextRequest) {
       .eq('id', session.userId)
       .single()
 
-    if (!user?.shops || !Array.isArray(user.shops) || user.shops.length === 0) {
+    const rawShops = user?.shops
+    const shopRow = Array.isArray(rawShops) && rawShops.length > 0
+      ? rawShops[0]
+      : rawShops && typeof rawShops === 'object' && rawShops !== null && 'id' in rawShops
+        ? rawShops
+        : null
+    if (!shopRow) {
       return NextResponse.json({ error: 'You must create a shop first' }, { status: 400 })
     }
-
-    const shop = user.shops[0]
+    const shop = shopRow
     const body = await req.json()
     const {
       name,

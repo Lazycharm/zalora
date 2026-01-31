@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Icon } from '@iconify/react'
 import { Button } from '@/components/ui/button'
+import { getLanguageForCountry, getLanguageFromBrowser } from '@/lib/country-language'
 
 const countries = [
   { code: 'AT', name: 'Austria' },
@@ -232,6 +233,9 @@ export function CountrySelection() {
             onClick={() => {
               localStorage.setItem('country-selected', 'true')
               localStorage.setItem('has-visited', 'true')
+              // Use browser language so site still appears in their language
+              const lang = getLanguageFromBrowser()
+              localStorage.setItem('preferred-language', lang)
               router.push('/')
             }}
             className="min-w-[180px] border-gray-300 hover:bg-gray-50"

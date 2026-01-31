@@ -4,20 +4,26 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { SellerOrderDetailsClient } from './order-details-client'
 
 async function getOrder(orderId: string, userId: string) {
-  // Get user's shop
+  // Get user's shop (Supabase can return shops as array or single object)
   const { data: user } = await supabaseAdmin
     .from('users')
     .select('shops (*)')
     .eq('id', userId)
     .single()
 
-  if (!user?.shops || !Array.isArray(user.shops) || user.shops.length === 0) {
+  const rawShops = user?.shops
+  const shop =
+    Array.isArray(rawShops) && rawShops.length > 0
+      ? rawShops[0]
+      : rawShops && typeof rawShops === 'object' && rawShops !== null && 'id' in rawShops
+        ? rawShops
+        : null
+
+  if (!shop) {
     return null
   }
 
-  const shop = user.shops[0]
-
-  // Get order
+  // Get order (include notes for shipping address when stored there)
   const { data: order, error } = await supabaseAdmin
     .from('orders')
     .select(`
@@ -27,7 +33,6 @@ async function getOrder(orderId: string, userId: string) {
         name,
         email
       ),
-      address:addresses (*),
       items:order_items (
         *,
         product:products!order_items_productId_fkey (
@@ -52,12 +57,46 @@ async function getOrder(orderId: string, userId: string) {
     return null
   }
 
+  // Parse shipping address from notes if present (checkout stores it there)
+  let address: {
+    name: string
+    phone?: string
+    address: string
+    city: string
+    state: string
+    zipCode?: string
+    postalCode?: string
+    country: string
+  } | null = null
+  try {
+    const notes = order.notes
+    if (notes && typeof notes === 'string') {
+      const parsed = JSON.parse(notes) as { shippingAddress?: typeof address }
+      if (parsed?.shippingAddress && typeof parsed.shippingAddress === 'object') {
+        const a = parsed.shippingAddress as Record<string, string>
+        address = {
+          name: a.fullName || a.name || '',
+          phone: a.phone,
+          address: a.address || '',
+          city: a.city || '',
+          state: a.state || '',
+          zipCode: a.zipCode,
+          postalCode: a.postalCode || a.zipCode || '',
+          country: a.country || '',
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   return {
     ...order,
     total: Number(order.total),
     subtotal: Number(order.subtotal),
     shipping: Number(order.shipping),
     tax: Number(order.tax),
+    address,
     items: shopItems.map((item: any) => ({
       ...item,
       price: Number(item.price),
@@ -74,7 +113,7 @@ async function getOrder(orderId: string, userId: string) {
 export default async function SellerOrderDetailsPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   const currentUser = await getCurrentUser()
 
@@ -86,7 +125,8 @@ export default async function SellerOrderDetailsPage({
     redirect('/account')
   }
 
-  const order = await getOrder(params.id, currentUser.id)
+  const { id } = await params
+  const order = await getOrder(id, currentUser.id)
 
   if (!order) {
     redirect('/seller/orders')

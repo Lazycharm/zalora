@@ -37,6 +37,7 @@ interface User {
   shop: {
     id: string
     name: string
+    status?: string
   } | null
 }
 
@@ -134,11 +135,12 @@ export function WholesaleClient({
     { icon: 'solar:chat-round-bold', label: 'Internal Message', href: '/account/support', active: false },
   ]
 
+  const hasApprovedShop = !!(user?.shop && (user.shop as { status?: string }).status === 'ACTIVE')
   const wholesaleItems = [
-    { icon: 'solar:shop-2-bold', label: 'Shop Management', href: '/account/wholesale', active: true },
-    { icon: 'solar:shop-bold', label: 'Shop Details', href: user?.shop ? '/seller/shop' : '/seller/create-shop', active: false },
-    { icon: 'solar:box-bold', label: 'Product Management', href: '/seller/products', active: false },
-    { icon: 'solar:bill-list-bold', label: 'Store Orders', href: '/seller/orders', active: false },
+    { icon: 'solar:shop-2-bold', label: 'Shop Management', href: '/account/wholesale', active: true, inactive: false },
+    { icon: 'solar:shop-bold', label: 'Shop Details', href: user?.shop ? '/seller/shop' : '/seller/create-shop', active: false, inactive: !hasApprovedShop },
+    { icon: 'solar:box-bold', label: 'Product Management', href: '/seller/products', active: false, inactive: !hasApprovedShop },
+    { icon: 'solar:bill-list-bold', label: 'Store Orders', href: '/seller/orders', active: false, inactive: !hasApprovedShop },
   ]
 
   return (
@@ -222,24 +224,35 @@ export function WholesaleClient({
               Shop Management
             </div>
             <nav className="space-y-1">
-              {wholesaleItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors relative ${
-                    item.active
-                      ? 'bg-blue-50 text-blue-600 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {item.active && (
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-full" />
-                  )}
-                  <Icon icon={item.icon} className="size-5" />
-                  <span>{item.label}</span>
-                </Link>
-              ))}
+              {wholesaleItems.map((item) =>
+                item.inactive ? (
+                  <div
+                    key={item.href}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 cursor-not-allowed opacity-70"
+                    title="Open a shop to access"
+                  >
+                    <Icon icon={item.icon} className="size-5" />
+                    <span>{item.label}</span>
+                  </div>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors relative ${
+                      item.active
+                        ? 'bg-blue-50 text-blue-600 font-medium'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.active && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-full" />
+                    )}
+                    <Icon icon={item.icon} className="size-5" />
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              )}
             </nav>
           </div>
         </div>

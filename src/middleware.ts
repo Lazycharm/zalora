@@ -7,8 +7,8 @@ const JWT_SECRET = new TextEncoder().encode(
 )
 
 // Protected routes checked in middleware (Edge - token only)
-// /account/* is NOT here: auth is done in account layout (Node) so cookies work on Netlify
-const protectedRoutes = ['/checkout', '/seller']
+// /account/* and /seller/* are NOT here: auth is done in layout/pages (Node) so cookies work
+const protectedRoutes = ['/checkout']
 
 // Admin routes that require admin/manager role
 const adminRoutes = ['/admin']
@@ -28,8 +28,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(route)
   )
 
-  // /account/*: let through; account layout will check auth in Node (cookies work on Netlify)
-  if (pathname.startsWith('/account')) {
+  // /account/* and /seller/*: let through; layout/pages check auth in Node (cookies work)
+  if (pathname.startsWith('/account') || pathname.startsWith('/seller')) {
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set('x-pathname', pathname)
     return NextResponse.next({ request: { headers: requestHeaders } })

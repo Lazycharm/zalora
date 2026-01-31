@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Icon } from '@iconify/react'
 import { useState } from 'react'
 import { useLanguage } from '@/contexts/language-context'
+import { getCategoryTranslationKey } from '@/lib/category-translations'
 
 interface Category {
   id: string
@@ -76,19 +77,24 @@ export function StoreSidebar({ categories }: StoreSidebarProps) {
       <div className="p-3">
         <nav className="space-y-0.5">
           {categories.map((category) => {
+            const slug = (category.slug || category.id || '').trim()
+            if (!slug) return null
+            const normalizedSlug = slug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+            const translationKey = getCategoryTranslationKey(normalizedSlug)
+            const label = translationKey ? t(translationKey) : category.name
             return (
               <Link
                 key={category.id}
-                href={`/categories/${category.slug}`}
+                href={`/categories?slug=${encodeURIComponent(slug)}`}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-normal text-gray-700 hover:bg-gray-100/80 hover:text-gray-900 transition-colors group"
               >
                 <CategoryIconImage
                   src={category.image}
                   slug={category.slug}
                   icon={category.icon}
-                  alt={category.name}
+                  alt={label}
                 />
-                <span className="leading-relaxed">{category.name}</span>
+                <span className="leading-relaxed">{label}</span>
               </Link>
             )
           })}
@@ -101,7 +107,7 @@ export function StoreSidebar({ categories }: StoreSidebarProps) {
       {/* About ZaloraFashion Section */}
       <div className="px-3 py-2">
         <h3 className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">
-          About ZaloraFashion
+          {t('aboutZaloraFashion')}
         </h3>
         <nav className="space-y-0.5">
           <Link
@@ -109,21 +115,21 @@ export function StoreSidebar({ categories }: StoreSidebarProps) {
             className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-normal text-gray-600 hover:bg-gray-100/80 hover:text-gray-900 transition-colors"
           >
             <Icon icon="solar:info-circle-linear" className="size-5 text-gray-500" />
-            <span className="leading-relaxed">About Us</span>
+            <span className="leading-relaxed">{t('aboutUs')}</span>
           </Link>
           <Link
             href="/auth/register"
             className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-normal text-gray-600 hover:bg-gray-100/80 hover:text-gray-900 transition-colors"
           >
             <Icon icon="solar:user-plus-linear" className="size-5 text-gray-500" />
-            <span className="leading-relaxed">Join us</span>
+            <span className="leading-relaxed">{t('joinUs')}</span>
           </Link>
           <Link
             href="/contact"
             className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-normal text-gray-600 hover:bg-gray-100/80 hover:text-gray-900 transition-colors"
           >
             <Icon icon="solar:letter-linear" className="size-5 text-gray-500" />
-            <span className="leading-relaxed">Contact Us</span>
+            <span className="leading-relaxed">{t('contactUs')}</span>
           </Link>
         </nav>
       </div>
@@ -131,7 +137,7 @@ export function StoreSidebar({ categories }: StoreSidebarProps) {
       {/* Exchange and Cooperation Section */}
       <div className="px-3 py-2">
         <h3 className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">
-          Exchange and Cooperation
+          {t('exchangeAndCooperation')}
         </h3>
         <nav className="space-y-0.5">
           <Link
@@ -139,7 +145,7 @@ export function StoreSidebar({ categories }: StoreSidebarProps) {
             className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-normal text-gray-600 hover:bg-gray-100/80 hover:text-gray-900 transition-colors"
           >
             <Icon icon="solar:document-text-linear" className="size-5 text-gray-500" />
-            <span className="leading-relaxed">Merchant Agreement</span>
+            <span className="leading-relaxed">{t('merchantAgreement')}</span>
           </Link>
         </nav>
       </div>

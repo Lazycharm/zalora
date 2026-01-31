@@ -6,6 +6,7 @@ import { BottomNav } from '@/components/layout/bottom-nav'
 import { ChatWidget } from '@/components/layout/chat-widget'
 import { SearchModal } from '@/components/search-modal'
 import { AuthSync } from '@/components/auth-sync'
+import { StorePageTitleProvider } from '@/contexts/store-page-title-context'
 
 // Cache maintenance check - only check every 5 minutes
 let maintenanceCache: { value: boolean; timestamp: number } | null = null
@@ -80,37 +81,41 @@ export default async function StoreLayout({
     const categories = await getCategories()
 
     return (
-      <div className="h-screen bg-gray-50/30 flex flex-col overflow-hidden">
-        <AuthSync />
-        <Header />
-        <div className="flex flex-1 overflow-hidden">
-          <StoreSidebar categories={categories} />
-          <main className="flex-1 lg:ml-64 pb-20 lg:pb-0 bg-white overflow-y-auto">
-            {children}
-          </main>
+      <StorePageTitleProvider>
+        <div className="h-screen bg-gray-50/30 flex flex-col overflow-hidden">
+          <AuthSync />
+          <Header />
+          <div className="flex flex-1 overflow-hidden">
+            <StoreSidebar categories={categories} />
+            <main className="flex-1 lg:ml-64 pb-20 lg:pb-0 bg-white overflow-y-auto">
+              {children}
+            </main>
+          </div>
+          <BottomNav />
+          <ChatWidget />
+          <SearchModal />
         </div>
-        <BottomNav />
-        <ChatWidget />
-        <SearchModal />
-      </div>
+      </StorePageTitleProvider>
     )
   } catch (error) {
     console.error('Layout error:', error)
     // Return basic layout without categories on error
     return (
-      <div className="h-screen bg-gray-50/30 flex flex-col overflow-hidden">
-        <AuthSync />
-        <Header />
-        <div className="flex flex-1 overflow-hidden">
-          <StoreSidebar categories={[]} />
-          <main className="flex-1 lg:ml-64 pb-20 lg:pb-0 bg-white overflow-y-auto">
-            {children}
-          </main>
+      <StorePageTitleProvider>
+        <div className="h-screen bg-gray-50/30 flex flex-col overflow-hidden">
+          <AuthSync />
+          <Header />
+          <div className="flex flex-1 overflow-hidden">
+            <StoreSidebar categories={[]} />
+            <main className="flex-1 lg:ml-64 pb-20 lg:pb-0 bg-white overflow-y-auto">
+              {children}
+            </main>
+          </div>
+          <BottomNav />
+          <ChatWidget />
+          <SearchModal />
         </div>
-        <BottomNav />
-        <ChatWidget />
-        <SearchModal />
-      </div>
+      </StorePageTitleProvider>
     )
   }
 }

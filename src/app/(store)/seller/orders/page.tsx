@@ -15,14 +15,22 @@ async function getSellerOrders(userId: string, searchParams: SearchParams) {
   const limit = 20
   const skip = (page - 1) * limit
 
-  // Get user's shop
+  // Get user's shop (Supabase can return shops as array or single object)
   const { data: user } = await supabaseAdmin
     .from('users')
     .select('shops (*)')
     .eq('id', userId)
     .single()
 
-  if (!user?.shops || !Array.isArray(user.shops) || user.shops.length === 0) {
+  const rawShops = user?.shops
+  const shop =
+    Array.isArray(rawShops) && rawShops.length > 0
+      ? rawShops[0]
+      : rawShops && typeof rawShops === 'object' && rawShops !== null && 'id' in rawShops
+        ? rawShops
+        : null
+
+  if (!shop) {
     return {
       orders: [],
       total: 0,
@@ -30,8 +38,6 @@ async function getSellerOrders(userId: string, searchParams: SearchParams) {
       page: 1,
     }
   }
-
-  const shop = user.shops[0]
 
   // Get product IDs for this shop
   const { data: shopProducts } = await supabaseAdmin

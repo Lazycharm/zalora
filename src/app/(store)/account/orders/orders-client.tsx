@@ -6,6 +6,7 @@ import { Icon } from '@iconify/react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice, formatDateTime, getStatusColor } from '@/lib/utils'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Order {
   id: string
@@ -27,6 +28,7 @@ interface Order {
 }
 
 export function OrdersClient({ orders }: { orders: Order[] }) {
+  const { t } = useLanguage()
   return (
     <div className="flex flex-col min-h-screen bg-background pb-20 lg:pb-0">
       {/* Mobile Header */}
@@ -35,7 +37,7 @@ export function OrdersClient({ orders }: { orders: Order[] }) {
           <Icon icon="solar:arrow-left-linear" className="size-6" />
         </Link>
         <h1 className="text-lg font-semibold text-primary-foreground font-heading">
-          My Orders
+          {t('myOrders')}
         </h1>
       </header>
 
@@ -43,21 +45,21 @@ export function OrdersClient({ orders }: { orders: Order[] }) {
         <div className="container mx-auto px-4 py-6">
           {/* Desktop Header */}
           <div className="hidden lg:block mb-6">
-            <h1 className="text-3xl font-bold font-heading">My Orders</h1>
-            <p className="text-muted-foreground mt-2">Track and manage your orders</p>
+            <h1 className="text-3xl font-bold font-heading">{t('myOrders')}</h1>
+            <p className="text-muted-foreground mt-2">{t('trackAndManageYourOrders')}</p>
           </div>
 
           {orders.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Icon icon="solar:box-linear" className="size-16 text-muted-foreground/30 mb-4" />
-                <h3 className="text-lg font-medium mb-2">No orders yet</h3>
-                <p className="text-muted-foreground mb-4">Start shopping to see your orders here</p>
+                <h3 className="text-lg font-medium mb-2">{t('noOrdersYet')}</h3>
+                <p className="text-muted-foreground mb-4">{t('startShoppingToSeeOrders')}</p>
                 <Link
                   href="/products"
                   className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
                 >
-                  Browse Products
+                  {t('browseProducts')}
                 </Link>
               </CardContent>
             </Card>
@@ -69,7 +71,7 @@ export function OrdersClient({ orders }: { orders: Order[] }) {
                     {/* Order Header */}
                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-border">
                       <div>
-                        <p className="font-medium">Order #{order.orderNumber}</p>
+                        <p className="font-medium">{t('orderNumber')} #{order.orderNumber}</p>
                         <p className="text-xs text-muted-foreground">{formatDateTime(order.createdAt)}</p>
                       </div>
                       <div className="flex gap-2">
@@ -109,7 +111,7 @@ export function OrdersClient({ orders }: { orders: Order[] }) {
 
                     {/* Order Total */}
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                      <span className="text-sm text-muted-foreground">Total</span>
+                      <span className="text-sm text-muted-foreground">{t('total')}</span>
                       <span className="text-lg font-bold">{formatPrice(order.total)}</span>
                     </div>
                   </CardContent>

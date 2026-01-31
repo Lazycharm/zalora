@@ -108,8 +108,8 @@ export function ShopsClient({
     <div className="space-y-6 pb-20 lg:pb-0">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold font-heading">Shops</h1>
-          <p className="text-muted-foreground">Manage multi-vendor shops</p>
+          <h1 className="text-2xl font-bold font-heading">Shops & KYC</h1>
+          <p className="text-muted-foreground">Review shop applications (KYC) and manage multi-vendor shops</p>
         </div>
       </div>
 
@@ -233,17 +233,23 @@ export function ShopsClient({
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <Link href={`/admin/shops/${shop.id}`} className="flex-1 min-w-[120px]">
+                    <Button size="sm" className="w-full">
+                      <Icon icon="solar:document-text-bold" className="mr-2 size-4" />
+                      Shop details
+                    </Button>
+                  </Link>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 min-w-[80px]"
                     onClick={() => handleStatusChange(shop)}
                   >
                     <Icon icon="solar:settings-bold" className="mr-2 size-4" />
                     Status
                   </Button>
-                  <Link href={`/admin/users/${shop.user.id}`} className="flex-1">
+                  <Link href={`/admin/users/${shop.user.id}`} className="flex-1 min-w-[80px]">
                     <Button variant="outline" size="sm" className="w-full">
                       <Icon icon="solar:user-bold" className="mr-2 size-4" />
                       Owner

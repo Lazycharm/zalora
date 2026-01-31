@@ -30,6 +30,7 @@ export async function PATCH(
       commissionRate,
       followers,
       totalSales,
+      memberSince,
     } = body
 
     const updateData: any = {}
@@ -114,6 +115,17 @@ export async function PATCH(
       }
     }
 
+    if (memberSince !== undefined) {
+      if (memberSince === null || memberSince === '') {
+        updateData.member_since = null
+      } else {
+        const d = new Date(memberSince)
+        if (!Number.isNaN(d.getTime())) {
+          updateData.member_since = d.toISOString()
+        }
+      }
+    }
+
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
@@ -135,8 +147,8 @@ export async function PATCH(
       throw error
     }
 
-    // When admin approves shop (status -> ACTIVE), also approve KYC verification
-    if (status === ShopStatus.ACTIVE) {
+    // When admin approves shop (status -> ACTIVE), approve KYC and grant seller access
+    if (status === ShopStatus.ACTIVE && shop?.userId) {
       await supabaseAdmin
         .from('shop_verifications')
         .update({
@@ -145,6 +157,7 @@ export async function PATCH(
           reviewedBy: session.userId,
         })
         .eq('shopId', params.id)
+      await supabaseAdmin.from('users').update({ canSell: true }).eq('id', shop.userId)
     }
 
     return NextResponse.json({ shop })

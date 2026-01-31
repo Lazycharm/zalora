@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Icon } from '@iconify/react'
@@ -12,7 +12,17 @@ import { useLanguage } from '@/contexts/language-context'
 export default function CartPage() {
   const { t } = useLanguage()
   const { items, removeItem, updateQuantity, getTotal, clearCart } = useCartStore()
-  const [selectedItems, setSelectedItems] = useState<string[]>(items.map(i => i.id))
+  const [mounted, setMounted] = useState(false)
+  const [selectedItems, setSelectedItems] = useState<string[]>([])
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  useEffect(() => {
+    if (mounted && items.length > 0) {
+      setSelectedItems((prev) => (prev.length === 0 ? items.map((i) => i.id) : prev))
+    }
+  }, [mounted, items])
 
   const toggleSelect = (id: string) => {
     setSelectedItems(prev => 
@@ -38,7 +48,9 @@ export default function CartPage() {
     .filter(i => selectedItems.includes(i.id))
     .reduce((count, item) => count + item.quantity, 0)
 
-  if (items.length === 0) {
+  // Avoid hydration mismatch: cart store is from localStorage so server has empty state.
+  // Render empty-cart placeholder until mounted, then show real cart.
+  if (!mounted || items.length === 0) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         {/* Header */}
@@ -70,7 +82,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background pb-36 lg:pb-0">
+    <div className="flex flex-col min-h-screen bg-background pb-44 lg:pb-0">
       {/* Mobile Header */}
       <div className="bg-primary px-4 pt-4 pb-6 lg:hidden">
         <div className="flex items-center justify-between">
@@ -211,18 +223,25 @@ export default function CartPage() {
         </div>
       </div>
 
-      {/* Mobile Checkout Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 lg:hidden">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">{t('total')}:</span>
-            <span className="text-xl font-bold text-primary">{formatPrice(selectedTotal)}</span>
+      {/* Mobile Checkout Bar - above bottom nav; safe area; space for assistant FAB */}
+      <div className="fixed left-0 right-0 bg-card border-t border-border shadow-[0_-4px_16px_rgba(0,0,0,0.08)] z-40 lg:hidden bottom-14 pb-[env(safe-area-inset-bottom)]">
+        <div className="px-4 pr-24 py-4 flex flex-col gap-3 max-w-[100vw] min-h-[88px]">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-sm text-muted-foreground">{t('total')} ({selectedCount} {t('items')})</span>
+            <span className="text-xl font-bold text-primary tabular-nums">{formatPrice(selectedTotal)}</span>
           </div>
-          <Button asChild size="lg" disabled={selectedCount === 0}>
-            <Link href="/checkout">
-              {t('checkout')} ({selectedCount})
-            </Link>
-          </Button>
+          <div className="flex gap-3 flex-shrink-0">
+            <Button variant="outline" size="default" className="flex-1 min-h-11 text-sm font-medium shrink-0" asChild>
+              <Link href="/products">
+                {t('continueShopping')}
+              </Link>
+            </Button>
+            <Button asChild size="default" className="flex-1 min-h-11 font-semibold min-w-0 shrink-0" disabled={selectedCount === 0}>
+              <Link href="/checkout">
+                {t('checkout')} ({selectedCount})
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     </div>

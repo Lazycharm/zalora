@@ -321,6 +321,47 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
                 }
               />
             </div>
+            <div className="space-y-3 pt-4 border-t border-border">
+              <div className="space-y-1">
+                <Label className="flex items-center gap-2">
+                  <Icon icon="solar:upload-bold" className="size-4" />
+                  Shop levels that can upload own products
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Only selected levels can add their own products; others can only add products from the main shop catalog. Uses same levels as Shop Details edit (Bronze, Silver, Gold, Platinum). Leave all unchecked to disable own product upload.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                {[
+                  { value: 'BRONZE', label: 'Bronze' },
+                  { value: 'SILVER', label: 'Silver' },
+                  { value: 'GOLD', label: 'Gold' },
+                  { value: 'PLATINUM', label: 'Platinum' },
+                ].map(({ value, label }) => {
+                  const current = (settings.levels_can_upload_own_products || '').split(',').map((s: string) => s.trim()).filter(Boolean)
+                  const checked = current.includes(value)
+                  return (
+                    <div key={value} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id={`level_${value}`}
+                        checked={checked}
+                        onChange={(e) => {
+                          const next = e.target.checked
+                            ? [...current, value]
+                            : current.filter((l) => l !== value)
+                          updateSetting('levels_can_upload_own_products', next.join(','))
+                        }}
+                        className="size-4 rounded border-border accent-primary"
+                      />
+                      <Label htmlFor={`level_${value}`} className="text-sm font-normal cursor-pointer">
+                        {label}
+                      </Label>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </TabsContent>

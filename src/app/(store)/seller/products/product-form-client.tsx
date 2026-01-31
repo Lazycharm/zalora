@@ -36,6 +36,7 @@ interface Product {
 interface Category {
   id: string
   name: string
+  icon?: string
 }
 
 interface SellerProductFormClientProps {
@@ -174,12 +175,13 @@ export function SellerProductFormClient({ product, categories }: SellerProductFo
 
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
-      <div className="flex items-center justify-between">
+      <div className="container mx-auto px-4 max-w-4xl">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-heading">
             {product ? 'Edit Product' : 'Add New Product'}
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mt-1">
             {product ? `Editing: ${product.name}` : 'Create a new product'}
           </p>
         </div>
@@ -316,13 +318,16 @@ export function SellerProductFormClient({ product, categories }: SellerProductFo
                 onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                 className="w-full px-3 py-2 bg-input border border-border rounded-lg text-sm"
               >
-                <option value="">No Category</option>
+                <option value="">Select a category</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Choose from available categories. Categories are managed in Admin.
+              </p>
             </div>
 
             <div>
@@ -440,6 +445,7 @@ export function SellerProductFormClient({ product, categories }: SellerProductFo
           </Link>
         </div>
       </form>
+      </div>
     </div>
   )
 }

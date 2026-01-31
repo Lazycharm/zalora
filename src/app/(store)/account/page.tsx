@@ -21,7 +21,8 @@ async function getAccountData(userId: string) {
         canSell,
         shops (
           id,
-          name
+          name,
+          status
         )
       `)
       .eq('id', userId)
@@ -35,7 +36,15 @@ async function getAccountData(userId: string) {
 
   const user = userResult.data
   const userSellingEnabled = settingResult.data?.value === 'true'
-  const shop = user?.shops && Array.isArray(user.shops) && user.shops.length > 0 ? user.shops[0] : null
+  const rawShops = user?.shops
+  const shopRow = Array.isArray(rawShops) && rawShops.length > 0
+    ? rawShops[0]
+    : rawShops && typeof rawShops === 'object' && rawShops !== null && 'id' in rawShops
+      ? rawShops
+      : null
+  const shop = shopRow
+    ? { id: shopRow.id, name: shopRow.name, status: shopRow.status || 'PENDING' }
+    : null
   const shopId = shop?.id
 
   let sellerOrdersCount = 0
@@ -62,9 +71,9 @@ async function getAccountData(userId: string) {
         }
       : null,
     stats: {
-      orders: ordersCount.count || 0,
-      favorites: favoritesCount.count || 0,
-      sellerOrdersCount,
+      orders: ordersCount?.count ?? 0,
+      favorites: favoritesCount?.count ?? 0,
+      sellerOrdersCount: sellerOrdersCount ?? 0,
     },
   }
 }

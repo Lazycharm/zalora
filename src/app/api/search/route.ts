@@ -10,8 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ products: [] })
     }
 
-    // Search products by name, description, or shortDesc
-    // Supabase uses ilike for case-insensitive search
+    // Search products by name, description, or shortDesc (no image join so we always get results)
     const { data: products, error } = await supabaseAdmin
       .from('products')
       .select(`
@@ -20,17 +19,11 @@ export async function GET(request: NextRequest) {
         slug,
         price,
         comparePrice,
-        description,
-        shortDesc,
         category:categories!products_categoryId_fkey (
           name
-        ),
-        images:product_images!inner (
-          url
         )
       `)
       .eq('status', 'PUBLISHED')
-      .eq('images.isPrimary', true)
       .or(`name.ilike.%${query}%,description.ilike.%${query}%,shortDesc.ilike.%${query}%`)
       .order('totalSales', { ascending: false })
       .limit(10)
@@ -39,14 +32,28 @@ export async function GET(request: NextRequest) {
       throw error
     }
 
-    // Format the response
+    const productIds = (products || []).map((p: any) => p.id)
+    let imageMap: Record<string, string> = {}
+    if (productIds.length > 0) {
+      const { data: images } = await supabaseAdmin
+        .from('product_images')
+        .select('productId, url, isPrimary')
+        .in('productId', productIds)
+        .order('isPrimary', { ascending: false })
+      const byProduct = (images || []).reduce((acc: Record<string, string>, img: any) => {
+        if (!acc[img.productId]) acc[img.productId] = img.url
+        return acc
+      }, {})
+      imageMap = byProduct
+    }
+
     const formattedProducts = (products || []).map((product: any) => ({
       id: product.id,
       name: product.name,
       slug: product.slug,
       price: Number(product.price),
       comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
-      image: product.images && product.images.length > 0 ? product.images[0].url : null,
+      image: imageMap[product.id] || '/images/logo.png',
       categoryName: product.category?.name || 'Uncategorized',
     }))
 

@@ -30,14 +30,15 @@ export function TopUpClient({ balance }: TopUpClientProps) {
   return (
     <div className="flex flex-col min-h-screen bg-background pb-20 lg:pb-0">
       <header className="sticky top-0 z-10 flex items-center justify-between h-14 bg-primary px-4 shadow-sm lg:hidden">
-        <Link href="/account/wallet" className="text-white">
-          <Icon icon="solar:arrow-left-linear" className="size-6" />
+        <Link href="/account/wallet" className="text-white flex items-center">
+          <Icon icon="solar:arrow-left-linear" className="size-6" aria-hidden />
+          <span className="sr-only">Back</span>
         </Link>
         <h1 className="text-lg font-semibold text-primary-foreground font-heading">
           top up
         </h1>
         <Link href="/account/billing" className="text-sm text-primary-foreground">
-          Recharge Record
+          <span>Recharge Record</span>
         </Link>
       </header>
 

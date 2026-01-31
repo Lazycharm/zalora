@@ -41,7 +41,7 @@ const menuItems = [
     icon: 'solar:bill-list-bold',
   },
   {
-    title: 'Shops',
+    title: 'Shops & KYC',
     href: '/admin/shops',
     icon: 'solar:shop-bold',
   },
@@ -74,6 +74,16 @@ const menuItems = [
     title: 'Crypto Addresses',
     href: '/admin/crypto-addresses',
     icon: 'solar:wallet-bold',
+  },
+  {
+    title: 'Deposit Approvals',
+    href: '/admin/deposits',
+    icon: 'solar:download-bold',
+  },
+  {
+    title: 'Withdrawal Approvals',
+    href: '/admin/withdrawals',
+    icon: 'solar:upload-bold',
   },
   {
     title: 'Settings',

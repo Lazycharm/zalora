@@ -10,18 +10,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user with shop
+    // Get user with shop (Supabase can return shops as array or single object)
     const { data: user } = await supabaseAdmin
       .from('users')
       .select('shops (*)')
       .eq('id', session.userId)
       .single()
 
-    if (!user?.shops || !Array.isArray(user.shops) || user.shops.length === 0) {
+    const rawShops = user?.shops
+    const shop =
+      Array.isArray(rawShops) && rawShops.length > 0
+        ? rawShops[0]
+        : rawShops && typeof rawShops === 'object' && rawShops !== null && 'id' in rawShops
+          ? rawShops
+          : null
+
+    if (!shop) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
     }
-
-    const shop = user.shops[0]
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
 

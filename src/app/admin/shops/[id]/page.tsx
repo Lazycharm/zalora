@@ -83,11 +83,11 @@ async function getShopData(shopId: string) {
     }
   }
 
-  // Get counts and KYC verification
+  // Get counts and full KYC verification (submitted details for admin review)
   const [productsCount, ordersCount, verificationResult] = await Promise.all([
     supabaseAdmin.from('products').select('*', { count: 'exact', head: true }).eq('shopId', shopId),
     supabaseAdmin.from('orders').select('*', { count: 'exact', head: true }).eq('shopId', shopId),
-    supabaseAdmin.from('shop_verifications').select('id, status, contactName, idNumber, reviewedAt, rejectionReason').eq('shopId', shopId).maybeSingle(),
+    supabaseAdmin.from('shop_verifications').select('id, status, contactName, idNumber, inviteCode, idCardFront, idCardBack, mainBusiness, detailedAddress, reviewedAt, rejectionReason, createdAt').eq('shopId', shopId).maybeSingle(),
   ])
   const verification = verificationResult.data
 
@@ -118,6 +118,7 @@ async function getShopData(shopId: string) {
       rating: Number(shop.rating || 0),
       commissionRate: Number(shop.commissionRate || 0),
       createdAt: shop.createdAt,
+      memberSince: shop.member_since ?? shop.memberSince ?? null,
       productCount: productsCount.count || 0,
       orderCount: ordersCount.count || 0,
       followersCount,
@@ -157,8 +158,14 @@ async function getShopData(shopId: string) {
       status: verification.status,
       contactName: verification.contactName,
       idNumber: verification.idNumber,
+      inviteCode: verification.inviteCode,
+      idCardFront: verification.idCardFront,
+      idCardBack: verification.idCardBack,
+      mainBusiness: verification.mainBusiness,
+      detailedAddress: verification.detailedAddress,
       reviewedAt: verification.reviewedAt,
       rejectionReason: verification.rejectionReason,
+      createdAt: verification.createdAt,
     } : null,
   }
 }

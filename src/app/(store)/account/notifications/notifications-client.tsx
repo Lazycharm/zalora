@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTime } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Notification {
   id: string
@@ -43,6 +44,7 @@ const typeColors: Record<string, string> = {
 export function UserNotificationsClient({
   notifications: initialNotifications,
 }: UserNotificationsClientProps) {
+  const { t } = useLanguage()
   const router = useRouter()
   const [notifications, setNotifications] = useState(initialNotifications)
   const [filter, setFilter] = useState<'all' | 'unread' | string>('all')
@@ -84,7 +86,7 @@ export function UserNotificationsClient({
 
       if (res.ok) {
         setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
-        toast.success('All notifications marked as read')
+        toast.success(t('allNotificationsMarkedAsRead'))
       }
     } catch (error) {
       toast.error('Failed to mark all as read')
@@ -100,7 +102,7 @@ export function UserNotificationsClient({
 
       if (res.ok) {
         setNotifications((prev) => prev.filter((n) => n.id !== id))
-        toast.success('Notification deleted')
+        toast.success(t('notificationDeleted'))
       }
     } catch (error) {
       toast.error('Failed to delete notification')
@@ -130,13 +132,13 @@ export function UserNotificationsClient({
     <div className="space-y-6 pb-20 lg:pb-0">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold font-heading">Notifications</h1>
-          <p className="text-muted-foreground">Your notifications</p>
+          <h1 className="text-2xl font-bold font-heading">{t('notifications')}</h1>
+          <p className="text-muted-foreground">{t('yourNotifications')}</p>
         </div>
         {unreadCount > 0 && (
           <Button variant="outline" onClick={handleMarkAllAsRead}>
             <Icon icon="solar:check-read-bold" className="mr-2 size-4" />
-            Mark All Read
+            {t('markAllRead')}
           </Button>
         )}
       </div>
@@ -160,7 +162,7 @@ export function UserNotificationsClient({
                 size="sm"
                 onClick={() => setFilter(item.key)}
               >
-                {item.label}
+                {t(item.labelKey)}
                 {typeCounts[item.key as keyof typeof typeCounts] > 0 && (
                   <Badge variant="secondary" className="ml-2">
                     {typeCounts[item.key as keyof typeof typeCounts]}
@@ -242,7 +244,7 @@ export function UserNotificationsClient({
                             }}
                           >
                             <Icon icon="solar:check-read-bold" className="mr-1 size-3" />
-                            Mark Read
+                            {t('markRead')}
                           </Button>
                         )}
                         <Button

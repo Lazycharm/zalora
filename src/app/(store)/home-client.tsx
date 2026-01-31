@@ -3,6 +3,7 @@
 import { Icon } from '@iconify/react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useUserStore, useCartStore } from '@/lib/store'
 import { HeroSlider } from '@/components/hero-slider'
 import { CategoryIcon } from '@/components/category-icon'
 import { ProductSlider } from '@/components/product-slider'
@@ -10,6 +11,7 @@ import { ScrollingText } from '@/components/scrolling-text'
 import { useLanguage } from '@/contexts/language-context'
 import { getCategoryTranslationKey } from '@/lib/category-translations'
 import { LanguageSelector } from '@/components/language-selector'
+import { useUIStore } from '@/lib/store'
 
 interface Category {
   id: string
@@ -56,7 +58,10 @@ export function HomePageClient({
   heroSlides,
 }: HomePageClientProps) {
   const { t } = useLanguage()
-  
+  const user = useUserStore((state) => state.user)
+  const cartCount = useCartStore((state) => state.getItemCount())
+  const setSearchOpen = useUIStore((s) => s.setSearchOpen)
+
   return (
     <div className="flex flex-col w-full h-full bg-background font-sans overflow-hidden">
       {/* Mobile Header */}
@@ -74,20 +79,35 @@ export function HomePageClient({
           </Link>
           <div className="flex items-center gap-2">
             <LanguageSelector variant="mobile" />
-            <Link
-              href="/auth/login"
-              className="bg-[#0D47A1] text-white text-xs font-semibold px-4 py-1.5 rounded-md"
-            >
-              Log in
-            </Link>
+            {user ? (
+              <Link
+                href="/account"
+                className="flex items-center gap-2 bg-[#0D47A1] text-white text-xs font-semibold px-3 py-1.5 rounded-md hover:bg-white/20 truncate max-w-[140px]"
+                title={user.name}
+              >
+                {user.avatar ? (
+                  <img src={user.avatar} alt="" className="size-7 rounded-full object-cover shrink-0" />
+                ) : (
+                  <Icon icon="solar:user-circle-linear" className="size-5 shrink-0" />
+                )}
+                <span className="truncate">{user.name || t('account')}</span>
+              </Link>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="bg-[#0D47A1] text-white text-xs font-semibold px-4 py-1.5 rounded-md"
+              >
+                {t('login')}
+              </Link>
+            )}
           </div>
         </div>
         
         <div className="flex justify-between items-center mb-6 text-white">
           <div className="flex flex-col">
-            <div className="text-sm font-medium opacity-90">Mega Sale Event</div>
+            <div className="text-sm font-medium opacity-90">{t('megaSaleEvent')}</div>
             <div className="flex items-center gap-1">
-              <span className="text-accent font-bold text-lg font-heading">Best Deals</span>
+              <span className="text-accent font-bold text-lg font-heading">{t('bestDeals')}</span>
               <div className="bg-accent text-accent-foreground rounded-full size-4 flex items-center justify-center">
                 <Icon icon="solar:arrow-right-linear" className="size-3" />
               </div>
@@ -103,14 +123,14 @@ export function HomePageClient({
         {/* Search Bar */}
         <div className="absolute left-4 right-4 -bottom-6 z-10">
           <div className="bg-card rounded-xl shadow-lg p-3 flex items-center gap-3">
-            <div className="flex-1 flex items-center bg-input rounded-lg px-3 py-2 gap-2 border border-border/50">
-              <Icon icon="solar:magnifer-linear" className="text-muted-foreground size-5" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground/70 truncate"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="flex-1 flex items-center bg-input rounded-lg px-3 py-2 gap-2 border border-border/50 text-left"
+            >
+              <Icon icon="solar:magnifer-linear" className="text-muted-foreground size-5 shrink-0" />
+              <span className="flex-1 text-sm text-muted-foreground truncate">{t('searchProducts')}</span>
+            </button>
             <Link href="/cart" className="p-1 relative">
               <Icon icon="solar:cart-large-2-linear" className="size-6 text-foreground" />
             </Link>
@@ -132,18 +152,23 @@ export function HomePageClient({
             <HeroSlider slides={heroSlides} autoPlayInterval={4000} />
           </div>
 
-          {/* Categories Quick Links - Horizontal Row Below Hero */}
+          {/* Categories Quick Links - Horizontal slider/scroller below Hero */}
           <div className="mb-4 bg-white border border-gray-200/60 rounded-lg p-4 shadow-sm">
-            <div className="flex gap-5 lg:gap-6 overflow-x-auto scrollbar-hide justify-center lg:justify-start">
+            <div className="flex gap-5 lg:gap-6 overflow-x-auto scrollbar-hide justify-start lg:justify-start snap-x snap-mandatory scroll-smooth pb-1 -mx-1 px-1">
               {categories.map((category) => {
-                const translationKey = getCategoryTranslationKey(category.slug)
+                const slug = (category.slug || category.name || '')
+                  .trim()
+                  .toLowerCase()
+                  .replace(/\s+/g, '-')
+                  .replace(/[^a-z0-9-]/g, '') || category.id
+                const translationKey = getCategoryTranslationKey(category.slug || slug)
                 const categoryName = translationKey ? t(translationKey) : category.name
                 
                 return (
                   <Link
                     key={category.id}
-                    href={`/categories/${category.slug}`}
-                    className="flex flex-col items-center gap-2 group flex-shrink-0"
+                    href={`/categories?slug=${encodeURIComponent(category.slug || slug)}`}
+                    className="flex flex-col items-center gap-2 group flex-shrink-0 snap-center"
                   >
                     <div
                       className="size-12 lg:size-14 rounded-full flex items-center justify-center transition-all group-hover:scale-105 overflow-hidden relative bg-white border border-gray-200/60 shadow-sm"
@@ -172,7 +197,7 @@ export function HomePageClient({
                   <Icon icon="solar:menu-dots-circle-bold" className="size-6 text-gray-600" />
                 </div>
                 <span className="text-[11px] text-center text-gray-600 font-normal whitespace-nowrap leading-tight">
-                  More
+                  {t('more')}
                 </span>
               </Link>
             </div>

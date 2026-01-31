@@ -191,25 +191,45 @@ export function CreateShopClient({ categories }: CreateShopClientProps) {
   }
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-0">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold font-heading">Create Your Shop</h1>
-          <p className="text-muted-foreground">Set up your shop to start selling</p>
-        </div>
-        <Link href="/seller/dashboard">
-          <Button variant="outline">
-            <Icon icon="solar:arrow-left-linear" className="mr-2 size-4" />
-            Back
-          </Button>
+    <div className="flex flex-col min-h-screen bg-background pb-20 lg:pb-0">
+      <header className="sticky top-0 z-10 flex items-center justify-between h-14 bg-primary px-4 shadow-sm lg:hidden">
+        <Link href="/account" className="flex items-center gap-1.5 text-primary-foreground">
+          <Icon icon="solar:arrow-left-linear" className="size-6" />
+          <span className="text-sm font-medium">Back</span>
         </Link>
+        <h1 className="text-lg font-semibold text-primary-foreground font-heading truncate max-w-[60%]">Apply for shop</h1>
+        <span className="w-14" />
+      </header>
+      <div className="flex-1 overflow-y-auto">
+        <div className="container mx-auto px-4 py-6 max-w-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl font-bold font-heading">Shop application & KYC verification</h1>
+              <p className="text-muted-foreground mt-1">Open your shop by completing identity verification (KYC) and store details</p>
+            </div>
+            <Link href="/account" className="shrink-0">
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Icon icon="solar:arrow-left-linear" className="mr-2 size-4" />
+                Back
+              </Button>
+            </Link>
+          </div>
+
+      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+        <p className="font-medium flex items-center gap-2">
+          <Icon icon="solar:shield-check-bold" className="size-5 text-primary" />
+          Identity verification required
+        </p>
+        <p className="text-muted-foreground mt-1">
+          To open a shop, we verify your identity (KYC). Please provide accurate details and clear ID documents. Your application will be reviewed by our team.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Apply for a store</CardTitle>
-            <p className="text-sm text-muted-foreground">Complete the form for KYC verification</p>
+            <CardTitle>Shop & identity details</CardTitle>
+            <p className="text-sm text-muted-foreground">Store information and KYC documents for verification</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -389,17 +409,19 @@ export function CreateShopClient({ categories }: CreateShopClientProps) {
           </CardContent>
         </Card>
 
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
           <Button type="submit" disabled={loading} className="flex-1">
-            {loading ? 'Creating...' : 'Create Shop'}
+            {loading ? 'Submitting...' : 'Submit application'}
           </Button>
-          <Link href="/seller/dashboard" className="flex-1">
+          <Link href="/account" className="flex-1">
             <Button type="button" variant="outline" className="w-full">
               Cancel
             </Button>
           </Link>
         </div>
       </form>
+        </div>
+      </div>
     </div>
   )
 }

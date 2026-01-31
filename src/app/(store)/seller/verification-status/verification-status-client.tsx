@@ -48,31 +48,51 @@ export function VerificationStatusClient({
 }: VerificationStatusClientProps) {
   if (!verification) {
     return (
-      <div className="space-y-6 pb-20 lg:pb-0">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold font-heading">KYC Verification Status</h1>
-          <Link href="/account">
-            <Button variant="outline">
-              <Icon icon="solar:arrow-left-linear" className="mr-2 size-4" />
-              Back to Account
-            </Button>
+      <div className="flex flex-col min-h-screen bg-background pb-20 lg:pb-0">
+        <header className="sticky top-0 z-10 flex items-center justify-between h-14 bg-primary px-4 shadow-sm lg:hidden">
+          <Link href="/account" className="flex items-center gap-1.5 text-primary-foreground">
+            <Icon icon="solar:arrow-left-linear" className="size-6" />
+            <span className="text-sm font-medium">Back</span>
           </Link>
-        </div>
-        <Card>
+          <h1 className="text-lg font-semibold text-primary-foreground font-heading">KYC status</h1>
+          <span className="w-14" />
+        </header>
+        <div className="flex-1 overflow-y-auto">
+          <div className="container mx-auto px-4 py-6 max-w-3xl">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <h1 className="text-2xl font-bold font-heading">KYC verification status</h1>
+              <Link href="/account">
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <Icon icon="solar:arrow-left-linear" className="mr-2 size-4" />
+                  Back to account
+                </Button>
+              </Link>
+            </div>
+            <Card className="overflow-hidden">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Icon icon="solar:document-text-linear" className="size-16 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium mb-2">No verification yet</h3>
-            <p className="text-muted-foreground text-center mb-6 max-w-md">
-              You have not applied for a store yet. When you apply and submit your KYC details, your verification status will appear here.
+            <Icon icon="solar:shield-keyhole-bold" className="size-16 text-muted-foreground/40 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No shop application yet</h3>
+            <p className="text-muted-foreground text-center mb-4 max-w-md">
+              Opening a shop requires identity verification (KYC). Submit a shop application with your details and ID documents; your verification status will appear here after submission.
             </p>
+            <div className="rounded-lg bg-muted/50 border border-border px-4 py-3 text-sm text-muted-foreground mb-6 max-w-md">
+              <p className="font-medium text-foreground mb-1">Process</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Apply for a shop and complete KYC</li>
+                <li>We review your application</li>
+                <li>Once approved, your shop goes live</li>
+              </ol>
+            </div>
             <Link href="/seller/create-shop">
               <Button>
                 <Icon icon="solar:shop-bold" className="mr-2 size-4" />
-                Apply for a store
+                Apply for a shop
               </Button>
             </Link>
           </CardContent>
         </Card>
+          </div>
+        </div>
       </div>
     )
   }
@@ -80,18 +100,28 @@ export function VerificationStatusClient({
   const config = statusConfig[verification.status] || statusConfig.PENDING
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-0">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold font-heading">KYC Verification Status</h1>
-        <Link href={verification.status === 'APPROVED' ? '/seller/shop' : '/account'}>
-          <Button variant="outline">
-            <Icon icon="solar:arrow-left-linear" className="mr-2 size-4" />
-            {verification.status === 'APPROVED' ? 'Go to Shop' : 'Back to Account'}
-          </Button>
+    <div className="flex flex-col min-h-screen bg-background pb-20 lg:pb-0">
+      <header className="sticky top-0 z-10 flex items-center justify-between h-14 bg-primary px-4 shadow-sm lg:hidden">
+        <Link href={verification.status === 'APPROVED' ? '/seller/shop' : '/account'} className="flex items-center gap-1.5 text-primary-foreground">
+          <Icon icon="solar:arrow-left-linear" className="size-6" />
+          <span className="text-sm font-medium">Back</span>
         </Link>
-      </div>
+        <h1 className="text-lg font-semibold text-primary-foreground font-heading">KYC status</h1>
+        <span className="w-14" />
+      </header>
+      <div className="flex-1 overflow-y-auto">
+        <div className="container mx-auto px-4 py-6 max-w-3xl">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <h1 className="text-2xl font-bold font-heading">KYC verification status</h1>
+            <Link href={verification.status === 'APPROVED' ? '/seller/shop' : '/account'}>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Icon icon="solar:arrow-left-linear" className="mr-2 size-4" />
+                {verification.status === 'APPROVED' ? 'Shop Management' : 'Back to account'}
+              </Button>
+            </Link>
+          </div>
 
-      <Card>
+          <Card className="overflow-hidden">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Verification Status</CardTitle>
@@ -134,12 +164,12 @@ export function VerificationStatusClient({
           {verification.status === 'APPROVED' && (
             <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-4">
               <p className="text-sm text-emerald-800 dark:text-emerald-200">
-                Your verification has been approved. You can now access your shop and start selling.
+                Your verification has been approved. You can now manage your shop and start selling.
               </p>
               <Link href="/seller/shop" className="mt-3 inline-block">
                 <Button size="sm">
                   <Icon icon="solar:shop-bold" className="mr-2 size-4" />
-                  Open Shop Dashboard
+                  Shop Management
                 </Button>
               </Link>
             </div>
@@ -155,6 +185,8 @@ export function VerificationStatusClient({
           )}
         </CardContent>
       </Card>
+        </div>
+      </div>
     </div>
   )
 }

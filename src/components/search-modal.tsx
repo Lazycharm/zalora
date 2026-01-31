@@ -21,6 +21,12 @@ interface SearchResult {
   categoryName: string
 }
 
+interface CategoryItem {
+  id: string
+  name: string
+  slug: string
+}
+
 export function SearchModal() {
   const router = useRouter()
   const { t } = useLanguage()
@@ -31,6 +37,7 @@ export function SearchModal() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const [popularCategories, setPopularCategories] = useState<CategoryItem[]>([])
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -39,6 +46,21 @@ export function SearchModal() {
       setRecentSearches(JSON.parse(saved))
     }
   }, [])
+
+  // Fetch popular categories when modal opens (no query)
+  useEffect(() => {
+    if (!searchOpen) return
+    let cancelled = false
+    fetch('/api/categories')
+      .then((res) => res.ok ? res.json() : { categories: [] })
+      .then((data) => {
+        if (!cancelled && data.categories?.length) {
+          setPopularCategories(data.categories)
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [searchOpen])
 
   // Save to recent searches
   const saveRecentSearch = (searchQuery: string) => {
@@ -242,16 +264,27 @@ export function SearchModal() {
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-3">Popular Categories</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  {['Women\'s Clothing', 'Men\'s Shoes', 'Electronics', 'Beauty & Health'].map((category, index) => (
-                    <Link
-                      key={index}
-                      href={`/categories/${category.toLowerCase().replace(/['\s&]/g, '-')}`}
-                      onClick={handleClose}
-                      className="p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors text-sm font-medium text-center"
-                    >
-                      {category}
-                    </Link>
-                  ))}
+                  {popularCategories.length > 0
+                    ? popularCategories.map((category) => (
+                        <Link
+                          key={category.id}
+                          href={`/categories?slug=${encodeURIComponent(category.slug)}`}
+                          onClick={handleClose}
+                          className="p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors text-sm font-medium text-center"
+                        >
+                          {category.name}
+                        </Link>
+                      ))
+                    : ['Women\'s Clothing', 'Men\'s Shoes', 'Electronics', 'Beauty & Health'].map((name, index) => (
+                        <Link
+                          key={index}
+                          href={`/categories?search=${encodeURIComponent(name)}`}
+                          onClick={handleClose}
+                          className="p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors text-sm font-medium text-center"
+                        >
+                          {name}
+                        </Link>
+                      ))}
                 </div>
               </div>
             </div>

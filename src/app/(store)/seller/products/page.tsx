@@ -12,29 +12,10 @@ interface SearchParams {
   status?: string
 }
 
-async function getSellerProducts(userId: string, searchParams: SearchParams) {
+async function getSellerProducts(shopId: string, searchParams: SearchParams) {
   const page = parseInt(searchParams.page || '1')
   const limit = 20
   const skip = (page - 1) * limit
-
-  // Get user's shop
-  const { data: user } = await supabaseAdmin
-    .from('users')
-    .select('shops (*)')
-    .eq('id', userId)
-    .single()
-
-  if (!user?.shops || !Array.isArray(user.shops) || user.shops.length === 0) {
-    return {
-      products: [],
-      total: 0,
-      pages: 0,
-      page: 1,
-      categories: [],
-    }
-  }
-
-  const shop = user.shops[0]
 
   // Build products query
   let productsQuery = supabaseAdmin
@@ -48,7 +29,7 @@ async function getSellerProducts(userId: string, searchParams: SearchParams) {
         url
       )
     `, { count: 'exact' })
-    .eq('shopId', shop.id)
+    .eq('shopId', shopId)
     .eq('images.isPrimary', true)
 
   // Apply filters
@@ -116,14 +97,9 @@ export default async function SellerProductsPage({
     redirect('/auth/login')
   }
 
-  if (!user.canSell) {
-    redirect('/account')
-  }
-
-  const { shop, canAccessShop } = await getSellerShopAccess(user.id)
+  const { shop } = await getSellerShopAccess(user.id)
   if (!shop) redirect('/seller/create-shop')
-  if (!canAccessShop) redirect('/seller/verification-status')
 
-  const data = await getSellerProducts(user.id, searchParams)
+  const data = await getSellerProducts(shop.id, searchParams)
   return <SellerProductsClient {...data} searchParams={searchParams} />
 }

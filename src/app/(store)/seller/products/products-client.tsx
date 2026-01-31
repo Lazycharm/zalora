@@ -48,11 +48,11 @@ export function SellerProductsClient({
   searchParams,
 }: SellerProductsClientProps) {
   return (
-    <div className="space-y-6 pb-20 lg:pb-0">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="space-y-6 pb-20 lg:pb-0 container mx-auto px-4 sm:px-6 max-w-6xl">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 sm:pt-6">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold font-heading">Product Management</h1>
-          <p className="text-muted-foreground">Manage your product catalog</p>
+          <p className="text-muted-foreground mt-1">Manage your product catalog</p>
         </div>
         <Link href="/seller/products/new">
           <Button>

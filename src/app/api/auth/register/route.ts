@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { register } from '@/lib/auth'
 import { isValidEmail } from '@/lib/utils'
+import { notifyAdmins } from '@/lib/notifications'
 
 export async function POST(request: Request) {
   try {
@@ -62,6 +63,16 @@ export async function POST(request: Request) {
     }
 
     console.log(`[REGISTER] Success: ${email}`)
+    try {
+      await notifyAdmins({
+        title: 'New user registered',
+        message: `${result.user?.name || email} (${email}) just signed up`,
+        type: 'system',
+        link: '/admin/users',
+      })
+    } catch (e) {
+      console.error('Notify admins error:', e)
+    }
     return NextResponse.json({ 
       success: true,
       user: result.user 

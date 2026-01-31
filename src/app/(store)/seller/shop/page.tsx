@@ -161,25 +161,8 @@ export default async function ShopDetailsPage() {
     redirect('/seller/verification-status')
   }
 
-  // Get full shop with product count
-  const { data: user } = await supabaseAdmin
-    .from('users')
-    .select(`
-      shops (
-        *,
-        products:products!inner (
-          id
-        )
-      )
-    `)
-    .eq('id', currentUser.id)
-    .single()
-
-  if (!user?.shops || !Array.isArray(user.shops) || user.shops.length === 0) {
-    redirect('/seller/create-shop')
-  }
-
-  const shop = user.shops[0]
+  // Use the shop we already have from getSellerShopAccess (avoids excluding shops with 0 products)
+  const shop = shopFromAccess
   const stats = await getShopStats(shop.id, shop)
 
   // Get product count
@@ -188,16 +171,17 @@ export default async function ShopDetailsPage() {
     .select('*', { count: 'exact', head: true })
     .eq('shopId', shop.id)
 
-  // Convert Decimal fields to numbers for client component
+  // Convert Decimal fields to numbers and ensure required fields exist (prevent shop details crash)
   const shopData = {
     ...shop,
-    balance: Number(shop.balance || 0),
-    rating: Number(shop.rating || 0),
-    commissionRate: Number(shop.commissionRate || 0),
-    followers: shop.followers || 0,
-    totalSales: shop.totalSales || 0,
+    balance: Number(shop.balance ?? 0),
+    rating: Number(shop.rating ?? 0),
+    commissionRate: Number(shop.commissionRate ?? 0),
+    followers: shop.followers ?? 0,
+    totalSales: shop.totalSales ?? 0,
+    level: shop.level ?? 'BRONZE',
     _count: {
-      products: productCount || 0,
+      products: productCount ?? 0,
     },
   }
 

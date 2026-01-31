@@ -143,17 +143,6 @@ export function ContactPageClient() {
                 <div className="space-y-4">
                   <div className="flex items-start gap-4">
                     <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Icon icon="solar:letter-bold" className="size-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-1">Email</h3>
-                      <a href="mailto:support@zalora.com" className="text-muted-foreground hover:text-primary">
-                        support@zalora.com
-                      </a>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <Icon icon="solar:clock-circle-bold" className="size-5 text-primary" />
                     </div>
                     <div>

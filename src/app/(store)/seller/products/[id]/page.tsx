@@ -1,29 +1,17 @@
 import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, getSellerShopAccess } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { SellerProductFormClient } from '../product-form-client'
+import { SellerAddFromCatalogClient } from '../add-from-catalog-client'
 
 export const dynamic = 'force-dynamic'
 
-async function getProduct(id: string, userId: string) {
+async function getProduct(id: string, shopId: string) {
   if (id === 'new') {
     return null
   }
 
-  // Get user's shop
-  const { data: user } = await supabaseAdmin
-    .from('users')
-    .select('shops (*)')
-    .eq('id', userId)
-    .single()
-
-  if (!user?.shops || !Array.isArray(user.shops) || user.shops.length === 0) {
-    return null
-  }
-
-  const shop = user.shops[0]
-
-  // Get product
+  // Get product and verify it belongs to this shop
   const { data: product, error } = await supabaseAdmin
     .from('products')
     .select(`
@@ -31,14 +19,10 @@ async function getProduct(id: string, userId: string) {
       images:product_images (*)
     `)
     .eq('id', id)
+    .eq('shopId', shopId)
     .single()
 
   if (error || !product) {
-    return null
-  }
-
-  // Verify product belongs to user's shop
-  if (product.shopId !== shop.id) {
     return null
   }
 
@@ -54,23 +38,89 @@ async function getProduct(id: string, userId: string) {
 async function getFormData() {
   const { data: categories, error } = await supabaseAdmin
     .from('categories')
-    .select('id, name')
+    .select('id, name, icon')
     .eq('isActive', true)
     .order('name', { ascending: true })
 
   if (error) {
-    throw error
+    return { categories: [] }
   }
 
   return {
+    categories: (categories || []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      icon: c.icon || 'solar:box-linear',
+    })),
+  }
+}
+
+/** Main shop products (shopId is null) for sellers to add to their store */
+async function getMainShopProducts(categoryId: string | null) {
+  let query = supabaseAdmin
+    .from('products')
+    .select(`
+      id,
+      name,
+      slug,
+      price,
+      status,
+      categoryId,
+      category:categories!products_categoryId_fkey ( name )
+    `)
+    .is('shopId', null)
+    .in('status', ['PUBLISHED', 'DRAFT'])
+    .order('name', { ascending: true })
+    .limit(100)
+
+  if (categoryId) {
+    query = query.eq('categoryId', categoryId)
+  }
+
+  const { data: rows, error } = await query
+  if (error) return { products: [], categories: [] }
+
+  const productIds = (rows || []).map((p: any) => p.id)
+  let imageMap: Record<string, string> = {}
+  if (productIds.length > 0) {
+    const { data: images } = await supabaseAdmin
+      .from('product_images')
+      .select('productId, url')
+      .in('productId', productIds)
+      .eq('isPrimary', true)
+    ;(images || []).forEach((img: any) => {
+      imageMap[img.productId] = img.url
+    })
+  }
+
+  const products = (rows || []).map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    price: Number(p.price),
+    image: imageMap[p.id] || null,
+    categoryName: p.category?.name || 'Uncategorized',
+    status: p.status,
+  }))
+
+  const { data: categories } = await supabaseAdmin
+    .from('categories')
+    .select('id, name')
+    .eq('isActive', true)
+    .order('name', { ascending: true })
+
+  return {
+    products,
     categories: (categories || []).map((c: any) => ({ id: c.id, name: c.name })),
   }
 }
 
 export default async function SellerProductPage({
   params,
+  searchParams,
 }: {
   params: { id: string }
+  searchParams: { category?: string }
 }) {
   const currentUser = await getCurrentUser()
 
@@ -78,23 +128,38 @@ export default async function SellerProductPage({
     redirect('/auth/login')
   }
 
-  if (!currentUser.canSell) {
-    redirect('/account')
-  }
+  const { shop } = await getSellerShopAccess(currentUser.id)
+  if (!shop) redirect('/seller/create-shop')
 
-  // Check if user has shop
-  const { data: user } = await supabaseAdmin
-    .from('users')
-    .select('shops (*)')
-    .eq('id', currentUser.id)
-    .single()
+  const isNew = params.id === 'new'
 
-  if (!user?.shops || !Array.isArray(user.shops) || user.shops.length === 0) {
-    redirect('/seller/create-shop')
+  if (isNew) {
+    const { data: settingRow } = await supabaseAdmin
+      .from('settings')
+      .select('value')
+      .eq('key', 'levels_can_upload_own_products')
+      .maybeSingle()
+
+    const levelsStr = (settingRow?.value as string) || ''
+    const allowedLevels = levelsStr.split(',').map((s: string) => s.trim()).filter(Boolean)
+    const shopLevel = (shop as { level?: string }).level ?? 'BRONZE'
+    const canUploadOwn = allowedLevels.length > 0 && allowedLevels.includes(shopLevel)
+
+    if (!canUploadOwn) {
+      const categoryId = searchParams?.category || null
+      const { products, categories } = await getMainShopProducts(categoryId)
+      return (
+        <SellerAddFromCatalogClient
+          products={products}
+          categories={categories}
+          selectedCategoryId={categoryId}
+        />
+      )
+    }
   }
 
   const [product, formData] = await Promise.all([
-    getProduct(params.id, currentUser.id),
+    getProduct(params.id, shop.id),
     getFormData(),
   ])
 

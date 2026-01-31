@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice, getStatusColor, formatDateTime } from '@/lib/utils'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Shop {
   id: string
@@ -35,9 +36,10 @@ interface SellerDashboardClientProps {
 }
 
 export function SellerDashboardClient({ stats, shop }: SellerDashboardClientProps) {
+  const { t } = useLanguage()
   const statCards = [
     {
-      title: 'Total Products',
+      titleKey: 'totalProducts' as const,
       value: stats.totalProducts,
       icon: 'solar:box-bold',
       color: 'text-blue-500',
@@ -87,19 +89,19 @@ export function SellerDashboardClient({ stats, shop }: SellerDashboardClientProp
   ]
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-0">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold font-heading">Seller Dashboard</h1>
-          <p className="text-muted-foreground">
-            {shop ? `Welcome back, ${shop.name}!` : 'Create your shop to start selling'}
+    <div className="space-y-6 pb-20 lg:pb-0 container mx-auto px-4 sm:px-6 max-w-6xl">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 sm:pt-6">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold font-heading">{t('sellerDashboard')}</h1>
+          <p className="text-muted-foreground mt-1">
+            {shop ? `${t('welcomeBack')}, ${shop.name}!` : t('createShopToStartSelling')}
           </p>
         </div>
         {!shop && (
           <Link href="/seller/create-shop">
             <Button>
               <Icon icon="solar:shop-bold" className="mr-2 size-4" />
-              Create Shop
+              {t('createShop')}
             </Button>
           </Link>
         )}
@@ -124,19 +126,19 @@ export function SellerDashboardClient({ stats, shop }: SellerDashboardClientProp
       ) : (
         <>
           {/* Shop Status Banner */}
-          {shop.status !== 'ACTIVE' && (
+          {shop && shop.status !== 'ACTIVE' && (
             <Card className="border-orange-200 bg-orange-50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <Icon icon="solar:info-circle-bold" className="size-5 text-orange-600" />
                   <div className="flex-1">
                     <p className="font-medium text-orange-900">
-                      Your shop is {shop.status.toLowerCase()}
+                      {t('yourShopIs')} {shop.status.toLowerCase()}
                     </p>
                     <p className="text-sm text-orange-700">
                       {shop.status === 'PENDING'
-                        ? 'Your shop is pending approval. You can add products, but they won\'t be visible to customers until approved.'
-                        : 'Your shop is currently suspended. Contact support for more information.'}
+                        ? t('pendingApprovalMessage')
+                        : t('suspendedMessage')}
                     </p>
                   </div>
                 </div>
@@ -147,12 +149,12 @@ export function SellerDashboardClient({ stats, shop }: SellerDashboardClientProp
           {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {statCards.map((stat) => (
-              <Link key={stat.title} href={stat.href}>
+              <Link key={stat.titleKey} href={stat.href}>
                 <Card className="hover:shadow-md transition-shadow cursor-pointer">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
+                        <p className="text-sm text-muted-foreground mb-1">{t(stat.titleKey)}</p>
                         <p className="text-2xl font-bold">{stat.value}</p>
                       </div>
                       <div className={`${stat.bgColor} p-3 rounded-lg`}>
@@ -181,7 +183,7 @@ export function SellerDashboardClient({ stats, shop }: SellerDashboardClientProp
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {stats.recentOrders.map((order) => (
+                  {(stats?.recentOrders ?? []).map((order) => (
                     <Link
                       key={order.id}
                       href={`/seller/orders/${order.id}`}
@@ -193,7 +195,7 @@ export function SellerDashboardClient({ stats, shop }: SellerDashboardClientProp
                           <Badge className={getStatusColor(order.status)}>{order.status}</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Customer: {order.userName}
+                          {t('customer')}: {order.userName}
                         </p>
                       </div>
                       <div className="text-right">
@@ -236,9 +238,9 @@ export function SellerDashboardClient({ stats, shop }: SellerDashboardClientProp
                       <Icon icon="solar:settings-bold" className="size-6 text-green-500" />
                     </div>
                     <div>
-                      <h3 className="font-semibold mb-1">Manage Shop</h3>
+                      <h3 className="font-semibold mb-1">{t('manageShop')}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Update shop details and settings
+                        {t('updateShopDetailsAndSettings')}
                       </p>
                     </div>
                   </div>

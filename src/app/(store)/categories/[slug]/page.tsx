@@ -10,19 +10,65 @@ interface SearchParams {
   sort?: string
 }
 
-async function getCategoryData(slug: string, searchParams: SearchParams) {
-  const { data: category, error } = await supabaseAdmin
-    .from('categories')
-    .select(`
-      *,
-      children:categories!categories_parentId_fkey (
-        *
-      )
-    `)
-    .eq('slug', slug)
-    .single()
+function normalizeSlug(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+}
 
-  if (error || !category) {
+async function getCategoryData(slug: string, searchParams: SearchParams) {
+  const slugDecoded = decodeURIComponent(slug || '').trim()
+  if (!slugDecoded) return null
+
+  const select = `
+    *,
+    children:categories!categories_parentId_fkey (
+      *
+    )
+  `
+
+  // Try exact match first
+  let result = await supabaseAdmin
+    .from('categories')
+    .select(select)
+    .eq('slug', slugDecoded)
+    .maybeSingle()
+
+  // Try normalized slug (lowercase, spaces to hyphens) if no exact match
+  if (!result.data && slugDecoded) {
+    const normalized = normalizeSlug(slugDecoded) || slugDecoded
+    if (normalized !== slugDecoded) {
+      result = await supabaseAdmin
+        .from('categories')
+        .select(select)
+        .eq('slug', normalized)
+        .maybeSingle()
+    }
+  }
+
+  // Try case-insensitive match
+  if (!result.data) {
+    const { data: all } = await supabaseAdmin
+      .from('categories')
+      .select('id, slug')
+      .eq('isActive', true)
+    const match = (all || []).find(
+      (c: { slug: string }) => c.slug && c.slug.toLowerCase() === slugDecoded.toLowerCase()
+    )
+    if (match) {
+      const byId = await supabaseAdmin
+        .from('categories')
+        .select(select)
+        .eq('id', match.id)
+        .single()
+      if (byId.data) result = { data: byId.data, error: byId.error }
+    }
+  }
+
+  const category = result.data
+  if (!category) {
     return null
   }
 

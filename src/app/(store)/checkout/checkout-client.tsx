@@ -29,10 +29,26 @@ export function CheckoutClient() {
   const { t } = useLanguage()
   const { items, getTotal, clearCart } = useCartStore()
   const user = useUserStore((state) => state.user)
+  const setUser = useUserStore((state) => state.setUser)
 
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState<'address' | 'payment'>('address')
-  
+
+  // Saved addresses for selection
+  const [savedAddresses, setSavedAddresses] = useState<Array<{
+    id: string
+    name: string
+    phone: string
+    country: string
+    state: string
+    city: string
+    address: string
+    postalCode: string
+    isDefault: boolean
+  }>>([])
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
+  const [loadingAddresses, setLoadingAddresses] = useState(false)
+
   // Address form
   const [addressData, setAddressData] = useState({
     fullName: user?.name || '',
@@ -46,8 +62,77 @@ export function CheckoutClient() {
     notes: '',
   })
 
-  // Payment method
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'crypto' | 'cod'>('card')
+  // Refetch user on checkout so account + shop balance are up to date for payment step
+  useEffect(() => {
+    const refreshUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' })
+        const data = await res.json()
+        if (res.ok && data.user) setUser(data.user)
+      } catch {
+        // keep existing user on error
+      }
+    }
+    refreshUser()
+  }, [setUser])
+
+  // Fetch saved addresses when on address step and apply default once
+  useEffect(() => {
+    if (step !== 'address') return
+    setLoadingAddresses(true)
+    fetch('/api/addresses', { credentials: 'include' })
+      .then(async (res) => {
+        const data = await res.json()
+        if (!res.ok || !data.addresses?.length) return
+        setSavedAddresses(data.addresses)
+        const defaultAddr = data.addresses.find((a: { isDefault: boolean }) => a.isDefault) || data.addresses[0]
+        setSelectedAddressId(defaultAddr.id)
+        setAddressData((prev) => ({
+          ...prev,
+          fullName: defaultAddr.name,
+          phone: defaultAddr.phone,
+          address: defaultAddr.address,
+          city: defaultAddr.city,
+          state: defaultAddr.state || '',
+          zipCode: defaultAddr.postalCode || '',
+          country: defaultAddr.country,
+        }))
+      })
+      .catch(() => {})
+      .finally(() => setLoadingAddresses(false))
+  }, [step])
+
+  // When user selects a saved address, fill form
+  const applySavedAddress = (addr: (typeof savedAddresses)[0]) => {
+    setSelectedAddressId(addr.id)
+    setAddressData((prev) => ({
+      ...prev,
+      fullName: addr.name,
+      phone: addr.phone,
+      address: addr.address,
+      city: addr.city,
+      state: addr.state || '',
+      zipCode: addr.postalCode || '',
+      country: addr.country,
+    }))
+  }
+
+  // Payment method: balance (user/shop), crypto, or card (disabled)
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'crypto' | 'balance'>('crypto')
+  const [payWithShopBalance, setPayWithShopBalance] = useState(false)
+  const [addToStore, setAddToStore] = useState(false)
+  const userBalance = user?.balance ?? 0
+  const shopBalance = (user?.shop as { balance?: number } | undefined)?.balance ?? 0
+  const hasShop = !!(user?.shop && (user.shop as { status?: string }).status === 'ACTIVE')
+  const hasMainShopItems = items.some((i) => !(i as { shopId?: string }).shopId)
+  const showAddToStore = hasShop && hasMainShopItems
+
+  const subtotal = getTotal()
+  const shipping = 0 // Free shipping
+  const tax = subtotal * 0.1 // 10% tax
+  const total = subtotal + shipping + tax
+  const balanceToUse = payWithShopBalance ? shopBalance : userBalance
+  const canPayWithBalance = paymentMethod === 'balance' && balanceToUse >= total
 
   // Card details
   const [cardData, setCardData] = useState({
@@ -63,15 +148,10 @@ export function CheckoutClient() {
   const [selectedCryptoAddress, setSelectedCryptoAddress] = useState<CryptoAddress | null>(null)
   const [loadingCryptoAddresses, setLoadingCryptoAddresses] = useState(false)
 
-  const subtotal = getTotal()
-  const shipping = 0 // Free shipping
-  const tax = subtotal * 0.1 // 10% tax
-  const total = subtotal + shipping + tax
-
-  // Fetch crypto addresses when crypto payment is selected
+  // Buyers always pay admin (platform). Sellers receive order credit separately; no seller-specific payment addresses.
   useEffect(() => {
-    if (paymentMethod === 'crypto' && cryptoAddresses.length === 0) {
-      fetchCryptoAddresses()
+    if (paymentMethod === 'crypto') {
+      fetchCryptoAddresses(null)
     }
   }, [paymentMethod])
 
@@ -86,18 +166,20 @@ export function CheckoutClient() {
     }
   }, [cryptoType, cryptoAddresses])
 
-  const fetchCryptoAddresses = async () => {
+  const fetchCryptoAddresses = async (_shopId: string | null) => {
     setLoadingCryptoAddresses(true)
     try {
       const response = await fetch('/api/crypto-addresses')
       const data = await response.json()
-      setCryptoAddresses(data.addresses || [])
-      
-      // Auto-select first USDT address if available
-      const usdtAddress = data.addresses.find((addr: CryptoAddress) => addr.currency.includes('USDT'))
+      const list = data.addresses || []
+      setCryptoAddresses(list)
+      const usdtAddress = list.find((addr: CryptoAddress) => addr.currency.includes('USDT'))
       if (usdtAddress) {
         setCryptoType(usdtAddress.currency)
         setSelectedCryptoAddress(usdtAddress)
+      } else if (list.length > 0) {
+        setCryptoType(list[0].currency)
+        setSelectedCryptoAddress(list[0])
       }
     } catch (error) {
       console.error('Failed to fetch crypto addresses:', error)
@@ -139,17 +221,14 @@ export function CheckoutClient() {
       return
     }
 
-    // Validate payment method
+    // Validate payment method (crypto only; card disabled - contact support)
     if (paymentMethod === 'card') {
-      if (!cardData.cardNumber || !cardData.cardName || !cardData.expiryDate || !cardData.cvv) {
-        toast.error('Please enter card details')
-        return
-      }
-    } else if (paymentMethod === 'crypto') {
-      if (!selectedCryptoAddress) {
-        toast.error('Please select a cryptocurrency')
-        return
-      }
+      toast.error('Bank transfer / card is not available here. Please use cryptocurrency or contact support.')
+      return
+    }
+    if (!selectedCryptoAddress) {
+      toast.error('Please select a cryptocurrency')
+      return
     }
 
     setIsLoading(true)
@@ -168,9 +247,12 @@ export function CheckoutClient() {
           })),
           address: addressData,
           paymentMethod,
+          payWithShopBalance: paymentMethod === 'balance' ? payWithShopBalance : undefined,
+          addToStore: showAddToStore ? addToStore : undefined,
           cryptoType: paymentMethod === 'crypto' ? cryptoType : undefined,
           cryptoAddressId: paymentMethod === 'crypto' ? selectedCryptoAddress?.id : undefined,
           total,
+          shopId: undefined,
         }),
       })
 
@@ -239,6 +321,54 @@ export function CheckoutClient() {
             {step === 'address' && (
               <div className="bg-card rounded-xl p-6 border border-border/50">
                 <h3 className="text-lg font-bold mb-4">Delivery {t('addresses')}</h3>
+
+                {loadingAddresses ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Icon icon="solar:refresh-circle-linear" className="size-8 animate-spin text-primary" />
+                  </div>
+                ) : savedAddresses.length > 0 ? (
+                  <div className="mb-6">
+                    <Label className="text-sm font-medium mb-2 block">Use a saved address</Label>
+                    <div className="space-y-2">
+                      {savedAddresses.map((addr) => (
+                        <button
+                          key={addr.id}
+                          type="button"
+                          onClick={() => applySavedAddress(addr)}
+                          className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                            selectedAddressId === addr.id
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-medium">{addr.name}</p>
+                              <p className="text-sm text-muted-foreground">{addr.phone}</p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {[addr.address, addr.city, addr.state, addr.postalCode].filter(Boolean).join(', ')} {addr.country}
+                              </p>
+                            </div>
+                            {selectedAddressId === addr.id && (
+                              <Icon icon="solar:check-circle-bold" className="size-5 text-primary shrink-0" />
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">Or edit details below</p>
+                  </div>
+                ) : null}
+
+                {!loadingAddresses && savedAddresses.length === 0 && (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    <Link href="/account/addresses" className="text-primary hover:underline">
+                      Add a saved address
+                    </Link>{' '}
+                    to speed up future checkouts.
+                  </p>
+                )}
+
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="fullName">Full Name *</Label>
@@ -337,17 +467,33 @@ export function CheckoutClient() {
                 
                 <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)}>
                   <div className="space-y-3">
-                    {/* Credit Card */}
-                    <div className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50">
-                      <RadioGroupItem value="card" id="card" />
-                      <Label htmlFor="card" className="flex-1 cursor-pointer flex items-center gap-2">
-                        <Icon icon="solar:card-bold" className="size-5" />
-                        Credit / Debit Card
+                    {/* Account balance */}
+                    <div className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 border-primary/50 bg-primary/5">
+                      <RadioGroupItem value="balance" id="balance" />
+                      <Label htmlFor="balance" className="flex-1 cursor-pointer flex items-center gap-2">
+                        <Icon icon="solar:wallet-money-bold" className="size-5" />
+                        <span>Account balance</span>
+                        <span className="text-sm font-semibold text-primary">{formatPrice(userBalance)}</span>
                       </Label>
                     </div>
+                    {hasShop && (
+                      <div className="flex items-center space-x-3 pl-4">
+                        <input
+                          type="checkbox"
+                          id="payWithShopBalance"
+                          checked={payWithShopBalance}
+                          onChange={(e) => setPayWithShopBalance(e.target.checked)}
+                          disabled={paymentMethod !== 'balance'}
+                          className="size-4 rounded border-border accent-primary"
+                        />
+                        <Label htmlFor="payWithShopBalance" className="text-sm cursor-pointer">
+                          Use shop balance instead — <span className="font-semibold text-primary">{formatPrice(shopBalance)}</span> available
+                        </Label>
+                      </div>
+                    )}
 
                     {/* Crypto */}
-                    <div className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50">
+                    <div className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 border-border">
                       <RadioGroupItem value="crypto" id="crypto" />
                       <Label htmlFor="crypto" className="flex-1 cursor-pointer flex items-center gap-2">
                         <Icon icon="solar:bitcoin-linear" className="size-5" />
@@ -355,62 +501,40 @@ export function CheckoutClient() {
                       </Label>
                     </div>
 
-                    {/* Cash on Delivery */}
-                    <div className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50">
-                      <RadioGroupItem value="cod" id="cod" />
-                      <Label htmlFor="cod" className="flex-1 cursor-pointer flex items-center gap-2">
-                        <Icon icon="solar:wallet-money-bold" className="size-5" />
-                        Cash on Delivery
+                    {/* Bank transfer / Card: disabled */}
+                    <div className="flex items-center space-x-3 p-4 border rounded-lg border-muted bg-muted/30 opacity-80 cursor-not-allowed">
+                      <RadioGroupItem value="card" id="card" disabled />
+                      <Label htmlFor="card" className="flex-1 flex items-center gap-2 text-muted-foreground">
+                        <Icon icon="solar:card-bold" className="size-5" />
+                        <span>Bank transfer / Card</span>
+                        <span className="text-xs">— Contact support for this option</span>
                       </Label>
                     </div>
                   </div>
                 </RadioGroup>
 
-                {/* Card Payment Details */}
-                {paymentMethod === 'card' && (
-                  <div className="mt-6 space-y-4">
-                    <div>
-                      <Label htmlFor="cardNumber">Card Number *</Label>
-                      <Input
-                        id="cardNumber"
-                        value={cardData.cardNumber}
-                        onChange={(e) => setCardData({ ...cardData, cardNumber: e.target.value })}
-                        placeholder="1234 5678 9012 3456"
-                        maxLength={19}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cardName">Cardholder Name *</Label>
-                      <Input
-                        id="cardName"
-                        value={cardData.cardName}
-                        onChange={(e) => setCardData({ ...cardData, cardName: e.target.value })}
-                        placeholder="JOHN DOE"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="expiryDate">Expiry Date *</Label>
-                        <Input
-                          id="expiryDate"
-                          value={cardData.expiryDate}
-                          onChange={(e) => setCardData({ ...cardData, expiryDate: e.target.value })}
-                          placeholder="MM/YY"
-                          maxLength={5}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="cvv">CVV *</Label>
-                        <Input
-                          id="cvv"
-                          value={cardData.cvv}
-                          onChange={(e) => setCardData({ ...cardData, cvv: e.target.value })}
-                          placeholder="123"
-                          maxLength={4}
-                          type="password"
-                        />
-                      </div>
-                    </div>
+                {paymentMethod === 'balance' && (
+                  <div className="mt-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                    <p className="text-sm font-medium">
+                      {canPayWithBalance
+                        ? `Your ${payWithShopBalance ? 'shop' : 'account'} balance (${formatPrice(balanceToUse)}) will be charged ${formatPrice(total)}.`
+                        : `Insufficient balance. You have ${formatPrice(balanceToUse)}; order total is ${formatPrice(total)}. Top up to continue.`}
+                    </p>
+                  </div>
+                )}
+
+                {showAddToStore && (
+                  <div className="mt-4 flex items-center space-x-3 p-4 border rounded-lg border-border">
+                    <input
+                      type="checkbox"
+                      id="addToStore"
+                      checked={addToStore}
+                      onChange={(e) => setAddToStore(e.target.checked)}
+                      className="size-4 rounded border-border accent-primary"
+                    />
+                    <Label htmlFor="addToStore" className="text-sm cursor-pointer flex-1">
+                      Add purchased main-shop items to my store (they will be added to your shop after payment)
+                    </Label>
                   </div>
                 )}
 
@@ -598,21 +722,11 @@ export function CheckoutClient() {
                   </div>
                 )}
 
-                {/* COD Info */}
-                {paymentMethod === 'cod' && (
-                  <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">
-                      <Icon icon="solar:info-circle-bold" className="inline size-4 mr-1" />
-                      Pay with cash when your order is delivered to your doorstep.
-                    </p>
-                  </div>
-                )}
-
                 <div className="flex gap-3 mt-6">
                   <Button onClick={() => setStep('address')} variant="outline" className="flex-1" size="lg">
                     {t('back')}
                   </Button>
-                  <Button onClick={handlePlaceOrder} className="flex-1" size="lg" disabled={isLoading}>
+                  <Button onClick={handlePlaceOrder} className="flex-1" size="lg" disabled={isLoading || (paymentMethod === 'balance' && !canPayWithBalance)}>
                     {isLoading ? (
                       <>
                         <Icon icon="solar:refresh-circle-linear" className="mr-2 size-4 animate-spin" />
@@ -633,6 +747,9 @@ export function CheckoutClient() {
           {/* Order Summary */}
           <div className="mt-6 lg:mt-0">
             <div className="bg-card rounded-xl p-6 border border-border/50 sticky top-24">
+              <p className="text-sm text-muted-foreground mb-2">
+                Payment: <span className="font-medium text-foreground">Store (Admin)</span>
+              </p>
               <h3 className="text-lg font-bold mb-4">Order Summary</h3>
               
               {/* Items */}

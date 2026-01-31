@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Icon } from '@iconify/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ProductCard } from '@/components/product-card'
-import { useCartStore } from '@/lib/store'
+import { useCartStore, useUserStore } from '@/lib/store'
 import { formatPrice } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -60,9 +60,60 @@ export function ProductDetailClient({
   relatedProducts: RelatedProduct[]
 }) {
   const router = useRouter()
+  const user = useUserStore((state) => state.user)
   const addItem = useCartStore((state) => state.addItem)
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
+  const [inCollection, setInCollection] = useState<boolean | null>(null)
+  const [collectionLoading, setCollectionLoading] = useState(false)
+
+  useEffect(() => {
+    if (!user || !product.id) {
+      setInCollection(null)
+      return
+    }
+    fetch(`/api/favorites/check?productId=${encodeURIComponent(product.id)}`)
+      .then((res) => res.json())
+      .then((data) => setInCollection(!!data.inCollection))
+      .catch(() => setInCollection(false))
+  }, [user, product.id])
+
+  const handleToggleCollection = async () => {
+    if (!user) {
+      router.push(`/auth/login?redirect=${encodeURIComponent(pathname || `/products/${product.slug}`)}`)
+      return
+    }
+    setCollectionLoading(true)
+    try {
+      if (inCollection) {
+        const res = await fetch(`/api/favorites?productId=${encodeURIComponent(product.id)}`, { method: 'DELETE' })
+        const data = await res.json()
+        if (res.ok) {
+          setInCollection(false)
+          toast.success('Removed from collection')
+        } else {
+          toast.error(data.message || 'Failed to remove')
+        }
+      } else {
+        const res = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId: product.id }),
+        })
+        const data = await res.json()
+        if (res.ok) {
+          setInCollection(true)
+          toast.success('Added to collection')
+        } else {
+          toast.error(data.message || 'Failed to add')
+        }
+      }
+    } catch {
+      toast.error('Something went wrong')
+    } finally {
+      setCollectionLoading(false)
+    }
+  }
 
   const handleAddToCart = () => {
     addItem({
@@ -71,6 +122,8 @@ export function ProductDetailClient({
       price: product.price,
       image: product.images[0]?.url || '/placeholder-product.jpg',
       quantity,
+      shopId: product.shop?.id,
+      shopName: product.shop?.name,
     })
     toast.success('Added to cart!')
   }
@@ -266,11 +319,11 @@ export function ProductDetailClient({
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-wrap gap-3 pt-4">
                 <Button
                   onClick={handleAddToCart}
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 min-w-[120px]"
                   disabled={product.stock === 0}
                 >
                   <Icon icon="solar:cart-plus-bold" className="mr-2 size-5" />
@@ -278,12 +331,33 @@ export function ProductDetailClient({
                 </Button>
                 <Button
                   onClick={handleBuyNow}
-                  className="flex-1"
+                  className="flex-1 min-w-[120px]"
                   disabled={product.stock === 0}
                 >
                   Buy Now
                 </Button>
+                <Button
+                  variant={inCollection ? 'secondary' : 'outline'}
+                  size="icon"
+                  className="shrink-0"
+                  onClick={handleToggleCollection}
+                  disabled={collectionLoading}
+                  title={inCollection ? 'In collection (click to remove)' : 'Add to collection'}
+                >
+                  {collectionLoading ? (
+                    <Icon icon="solar:refresh-circle-linear" className="size-5 animate-spin" />
+                  ) : inCollection ? (
+                    <Icon icon="solar:heart-bold" className="size-5 text-primary" />
+                  ) : (
+                    <Icon icon="solar:heart-linear" className="size-5" />
+                  )}
+                </Button>
               </div>
+              {user && inCollection !== null && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {inCollection ? 'In My Collection' : 'Add to My Collection'}
+                </p>
+              )}
 
               {/* Shop Info */}
               {product.shop && (

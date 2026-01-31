@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import Image from 'next/image'
 import { Icon } from '@iconify/react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -10,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import toast from 'react-hot-toast'
 import { useUIStore } from '@/lib/store'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Message {
   id: string
@@ -18,14 +20,15 @@ interface Message {
   timestamp: Date
 }
 
-const quickQuestions = [
-  { id: '1', text: 'Track my order', icon: 'solar:box-linear' },
-  { id: '2', text: 'Payment help', icon: 'solar:card-linear' },
-  { id: '3', text: 'Refund policy', icon: 'solar:restart-linear' },
-  { id: '4', text: 'Shipping info', icon: 'solar:delivery-linear' },
+const quickQuestionKeys = [
+  { id: '1', key: 'trackMyOrder' as const, icon: 'solar:box-linear' },
+  { id: '2', key: 'paymentHelp' as const, icon: 'solar:card-linear' },
+  { id: '3', key: 'refundPolicy' as const, icon: 'solar:restart-linear' },
+  { id: '4', key: 'shippingInfo' as const, icon: 'solar:delivery-linear' },
 ]
 
 export function ChatWidget() {
+  const { t } = useLanguage()
   const isChatOpen = useUIStore((s) => s.isChatOpen)
   const setChatOpen = useUIStore((s) => s.setChatOpen)
   const [isOpen, setIsOpen] = useState(false)
@@ -167,15 +170,16 @@ export function ChatWidget() {
 
   return (
     <>
-      {/* Chat Button */}
-      <button
-        onClick={() => setOpen(!isOpen)}
+      {/* Assistant button: links to Online Customer Service page */}
+      <Link
+        href="/account/support"
         className={cn(
           'fixed right-4 bottom-24 lg:bottom-6 z-50',
           'bg-primary text-primary-foreground size-14 rounded-xl shadow-lg',
           'flex flex-col items-center justify-center gap-0.5 border-2 border-white/20',
           'hover:scale-105 transition-transform'
         )}
+        aria-label="Online Customer Service"
       >
         <div className="relative size-6">
           <Image
@@ -186,8 +190,8 @@ export function ChatWidget() {
             unoptimized
           />
         </div>
-        <span className="text-[9px] font-bold">Assistant</span>
-      </button>
+        <span className="text-[9px] font-bold">assistant</span>
+      </Link>
 
       {/* Chat Window */}
       <AnimatePresence>
@@ -316,14 +320,14 @@ export function ChatWidget() {
               <div className="px-4 pb-2">
                 <p className="text-[10px] text-muted-foreground mb-2">Quick questions:</p>
                 <div className="flex flex-wrap gap-2">
-                  {quickQuestions.map((q) => (
+                  {quickQuestionKeys.map((q) => (
                     <button
                       key={q.id}
-                      onClick={() => handleQuickQuestion(q.text)}
+                      onClick={() => handleQuickQuestion(t(q.key))}
                       className="flex items-center gap-1 px-2 py-1 bg-muted rounded-full text-[11px] font-medium hover:bg-muted/80 transition-colors"
                     >
                       <Icon icon={q.icon} className="size-3" />
-                      {q.text}
+                      {t(q.key)}
                     </button>
                   ))}
                 </div>

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
-import { TopUpClient } from './topup-client'
+import { RechargeMethodsClient } from './recharge-methods-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,12 +9,12 @@ export default async function TopUpPage() {
   const currentUser = await getCurrentUser()
   if (!currentUser) redirect('/auth/login')
 
-  const { data: user } = await supabaseAdmin
-    .from('users')
-    .select('balance')
-    .eq('id', currentUser.id)
-    .single()
+  const { data: addresses } = await supabaseAdmin
+    .from('crypto_addresses')
+    .select('id, currency, address, network, label, qrCode')
+    .eq('isActive', true)
+    .is('shopId', null)
+    .order('currency', { ascending: true })
 
-  const balance = Number(user?.balance ?? 0)
-  return <TopUpClient balance={balance} />
+  return <RechargeMethodsClient addresses={addresses || []} />
 }

@@ -27,9 +27,9 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
--- CreateEnum: ShopLevel
+-- CreateEnum: ShopLevel (Bronze, Silver, Gold, Platinum - same as admin Shop Details edit)
 DO $$ BEGIN
-    CREATE TYPE "ShopLevel" AS ENUM ('BASIC', 'PREMIUM', 'ENTERPRISE');
+    CREATE TYPE "ShopLevel" AS ENUM ('BRONZE', 'SILVER', 'GOLD', 'PLATINUM');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS shops (
     logo TEXT,
     banner TEXT,
     status "ShopStatus" NOT NULL DEFAULT 'PENDING',
-    level "ShopLevel" NOT NULL DEFAULT 'BASIC',
+    level "ShopLevel" NOT NULL DEFAULT 'BRONZE',
     rating DECIMAL(2,1) NOT NULL DEFAULT 0,
     "totalSales" INTEGER NOT NULL DEFAULT 0,
     balance DECIMAL(12,2) NOT NULL DEFAULT 0,

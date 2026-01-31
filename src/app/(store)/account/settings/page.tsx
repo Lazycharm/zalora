@@ -5,8 +5,10 @@ import { Icon } from '@iconify/react'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useLanguage } from '@/contexts/language-context'
 
 export default function AccountSettingsPage() {
+  const { t } = useLanguage()
   return (
     <div className="flex flex-col min-h-screen bg-background pb-20 lg:pb-0">
       <header className="sticky top-0 z-10 flex items-center justify-center h-14 bg-primary px-4 shadow-sm lg:hidden">
@@ -14,41 +16,41 @@ export default function AccountSettingsPage() {
           <Icon icon="solar:arrow-left-linear" className="size-6" />
         </Link>
         <h1 className="text-lg font-semibold text-primary-foreground font-heading">
-          Settings
+          {t('settings')}
         </h1>
       </header>
 
       <div className="flex-1 overflow-y-auto">
         <div className="container mx-auto px-4 py-6 max-w-2xl">
           <div className="hidden lg:block mb-6">
-            <h1 className="text-2xl font-bold font-heading">Account Settings</h1>
-            <p className="text-muted-foreground mt-2">Manage your preferences</p>
+            <h1 className="text-2xl font-bold font-heading">{t('accountSettings')}</h1>
+            <p className="text-muted-foreground mt-2">{t('manageYourPreferences')}</p>
           </div>
 
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Notifications</CardTitle>
+                <CardTitle>{t('notifications')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Order Updates</Label>
-                    <p className="text-xs text-muted-foreground">Get notified about order status</p>
+                    <Label>{t('orderUpdates')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('getNotifiedAboutOrderStatus')}</p>
                   </div>
                   <Switch defaultChecked />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Promotions</Label>
-                    <p className="text-xs text-muted-foreground">Receive deals and offers</p>
+                    <Label>{t('promotions')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('receiveDealsAndOffers')}</p>
                   </div>
                   <Switch defaultChecked />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Newsletter</Label>
-                    <p className="text-xs text-muted-foreground">Weekly updates and news</p>
+                    <Label>{t('newsletter')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('weeklyUpdatesAndNews')}</p>
                   </div>
                   <Switch />
                 </div>
@@ -57,20 +59,20 @@ export default function AccountSettingsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Privacy</CardTitle>
+                <CardTitle>{t('privacy')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Profile Visibility</Label>
-                    <p className="text-xs text-muted-foreground">Show profile to other users</p>
+                    <Label>{t('profileVisibility')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('showProfileToOtherUsers')}</p>
                   </div>
                   <Switch />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Activity Status</Label>
-                    <p className="text-xs text-muted-foreground">Show when you're active</p>
+                    <Label>{t('activityStatus')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('showWhenActive')}</p>
                   </div>
                   <Switch defaultChecked />
                 </div>

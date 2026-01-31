@@ -17,33 +17,44 @@ async function getUserFavorites(userId: string) {
         comparePrice,
         rating,
         totalReviews,
-        isFeatured,
-        images:product_images!inner (
-          url
-        )
+        isFeatured
       )
     `)
     .eq('userId', userId)
-    .eq('product.images.isPrimary', true)
     .order('createdAt', { ascending: false })
 
   if (error) {
     throw error
   }
 
+  const productIds = (favorites || []).map((fav: any) => fav.product?.id).filter(Boolean)
+  let imageMap: Record<string, string> = {}
+  if (productIds.length > 0) {
+    const { data: images } = await supabaseAdmin
+      .from('product_images')
+      .select('productId, url, isPrimary')
+      .in('productId', productIds)
+      .order('isPrimary', { ascending: false })
+    const byProduct = (images || []).reduce((acc: Record<string, string>, img: any) => {
+      if (!acc[img.productId]) acc[img.productId] = img.url
+      return acc
+    }, {})
+    imageMap = byProduct
+  }
+
   return (favorites || []).map((fav: any) => ({
     userId: fav.userId,
     productId: fav.productId,
     product: {
-      id: fav.product.id,
-      name: fav.product.name,
-      slug: fav.product.slug,
-      price: Number(fav.product.price),
-      comparePrice: fav.product.comparePrice ? Number(fav.product.comparePrice) : null,
-      rating: Number(fav.product.rating || 0),
-      reviews: fav.product.totalReviews || 0,
-      image: fav.product.images && fav.product.images.length > 0 ? fav.product.images[0].url : '/placeholder-product.jpg',
-      isFeatured: fav.product.isFeatured,
+      id: fav.product?.id,
+      name: fav.product?.name,
+      slug: fav.product?.slug,
+      price: Number(fav.product?.price ?? 0),
+      comparePrice: fav.product?.comparePrice ? Number(fav.product.comparePrice) : null,
+      rating: Number(fav.product?.rating ?? 0),
+      reviews: fav.product?.totalReviews ?? 0,
+      image: imageMap[fav.productId] || '/images/logo.png',
+      isFeatured: fav.product?.isFeatured ?? false,
     },
   }))
 }

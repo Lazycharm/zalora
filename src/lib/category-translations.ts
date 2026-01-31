@@ -14,6 +14,9 @@ export const categorySlugToKey: Record<string, TranslationKey> = {
   'sports-outdoors': 'sportsOutdoors',
   'beauty-health': 'beautyHealth',
   'kids-maternity': 'kidsMaternity',
+  'accessories': 'accessories',
+  'girls': 'girls',
+  'boys': 'boys',
 }
 
 export function getCategoryTranslationKey(slug: string): TranslationKey | null {
