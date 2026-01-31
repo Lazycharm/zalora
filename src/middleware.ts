@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 import { createServerClient } from '@supabase/ssr'
+import { getRedirectBase } from '@/lib/redirect-base'
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'zalora-secret-key'
@@ -67,8 +68,10 @@ export async function middleware(request: NextRequest) {
 
   const token = request.cookies.get('auth-token')?.value
 
+  const base = getRedirectBase(request)
+
   if (!token) {
-    const loginUrl = new URL('/auth/login', request.url)
+    const loginUrl = new URL('/auth/login', base)
     loginUrl.searchParams.set('redirect', pathname)
     const redirectResponse = NextResponse.redirect(loginUrl)
     response.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value))
@@ -78,17 +81,17 @@ export async function middleware(request: NextRequest) {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET)
     if (payload.exp && payload.exp < Date.now() / 1000) {
-      const redirectResponse = NextResponse.redirect(new URL('/auth/login', request.url))
+      const redirectResponse = NextResponse.redirect(new URL('/auth/login', base))
       redirectResponse.cookies.set('auth-token', '', { path: '/', maxAge: 0 })
       response.cookies.getAll().forEach((c) => { if (c.name !== 'auth-token') redirectResponse.cookies.set(c.name, c.value) })
       return redirectResponse
     }
     if (isAdminRoute && payload.role !== 'ADMIN' && payload.role !== 'MANAGER') {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL('/', base))
     }
     return response
   } catch (error) {
-    const redirectResponse = NextResponse.redirect(new URL('/auth/login', request.url))
+    const redirectResponse = NextResponse.redirect(new URL('/auth/login', base))
     redirectResponse.cookies.set('auth-token', '', { path: '/', maxAge: 0 })
     response.cookies.getAll().forEach((c) => { if (c.name !== 'auth-token') redirectResponse.cookies.set(c.name, c.value) })
     return redirectResponse
