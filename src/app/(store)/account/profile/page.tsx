@@ -63,7 +63,7 @@ export default function ProfilePage() {
       const fd = new FormData()
       fd.append('file', file)
       fd.append('folder', 'avatars')
-      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const res = await fetch('/api/upload', { method: 'POST', body: fd, credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Upload failed')
       setFormData((prev) => ({ ...prev, avatar: data.url }))

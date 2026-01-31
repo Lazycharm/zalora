@@ -1,418 +1,387 @@
-# ZALORA Fashion — User Manual
+# ZALORA Fashion — Admin & Platform Manual
 
-This manual describes how to use the ZALORA Fashion online shop as a **shopper**, **seller**, and **account holder**. It covers browsing, cart, checkout, account management, wallet, and selling.
+This manual is written for **administrators** who run and control the ZALORA Fashion platform. It explains every admin capability, then summarizes how shoppers and sellers use the store. Use it to understand and operate the full system.
 
 ---
 
 ## Table of Contents
 
-1. [Introduction & Getting Started](#1-introduction--getting-started)
-2. [Country & Language](#2-country--language)
-3. [Browsing & Shopping](#3-browsing--shopping)
-4. [Cart & Checkout](#4-cart--checkout)
-5. [Your Account](#5-your-account)
-6. [Becoming a Seller](#6-becoming-a-seller)
-7. [Visiting Shops](#7-visiting-shops)
-8. [Support & Legal](#8-support--legal)
-9. [Troubleshooting & FAQ](#9-troubleshooting--faq)
+**Part A — Admin (Full Control)**  
+1. [Admin access and roles](#1-admin-access-and-roles)  
+2. [Dashboard](#2-dashboard)  
+3. [Users](#3-users)  
+4. [Products](#4-products)  
+5. [Categories](#5-categories)  
+6. [Orders](#6-orders)  
+7. [Shops & KYC](#7-shops--kyc)  
+8. [Homepage (hero slides)](#8-homepage-hero-slides)  
+9. [Coupons](#9-coupons)  
+10. [Support tickets](#10-support-tickets)  
+11. [Notifications](#11-notifications)  
+12. [CMS Pages](#12-cms-pages)  
+13. [Crypto addresses](#13-crypto-addresses)  
+14. [Deposit approvals](#14-deposit-approvals)  
+15. [Withdrawal approvals](#15-withdrawal-approvals)  
+16. [Settings](#16-settings)  
+
+**Part B — Store, shoppers & sellers**  
+17. [Store front (shoppers)](#17-store-front-shoppers)  
+18. [Sellers](#18-sellers)  
+19. [Quick reference — URLs](#19-quick-reference--urls)  
 
 ---
 
-## 1. Introduction & Getting Started
+# Part A — Admin (Full Control)
 
-### What is ZALORA Fashion?
+## 1. Admin access and roles
 
-ZALORA Fashion is an e‑commerce platform where you can:
-
-- **Shop** — Browse categories, search products, add to cart, and pay (including with cryptocurrency or account balance).
-- **Manage your account** — Profile, orders, addresses, favorites, wallet, notifications, and settings.
-- **Sell** — Open a shop, list products, manage orders, and handle shop wallet (top-up, withdraw, records).
-
-### First-time visit
-
-1. Open the ZALORA Fashion website.
-2. If prompted, **select your country/region** on the country selection page. This helps set your language and experience.
-3. You can browse without logging in. To place orders, save favorites, or use the wallet, you must **register** and **log in**.
-
-### Registering and logging in
-
-- **Register:** Use the **Sign up** / **Join us** link (e.g. from the header, footer, or `/auth/register`). Fill in email, password, and any required fields, then submit.
-- **Log in:** Go to **Log In** (e.g. header or `/auth/login`). Enter email and password. You can use **Forgot password?** at `/auth/forgot-password` if needed.
-- After login, you are redirected to the homepage (or to the page you had in the `?redirect=...` URL, if safe).
+- **Who can use admin:** Only users with role **ADMIN** or **MANAGER** can open the admin panel. Others are redirected to the store home.
+- **How to open admin:** Log in with an admin/manager account, then go to **/admin** (or use the redirect after login for these roles).
+- **Layout:** Admin has a **sidebar** (Dashboard, Users, Products, Categories, Orders, Shops & KYC, Homepage, Coupons, Support, Notifications, CMS Pages, Crypto Addresses, Deposit Approvals, Withdrawal Approvals, Settings) and a **header** (search, notifications, logout). Use the sidebar to reach each area.
+- **Logout:** Use **Logout** in the header to sign out of admin.
 
 ---
 
-## 2. Country & Language
+## 2. Dashboard
 
-### Country selection
+**Path:** `/admin` (Dashboard in sidebar)
 
-- On first visit you may see a **country/region selection** page (`/select-country`).
-- Choose your country from the list (e.g. USA, UK, Germany, France, Japan, China, and many others).
-- Your choice is stored so you are not asked again on the same device.
-- Country can influence the **default language** (see below).
+**What you see:**
 
-### Language
+- **Summary cards** (click to go to the related section):
+  - **Total Users** → `/admin/users`
+  - **Total Orders** → `/admin/orders`
+  - **Products** → `/admin/products`
+  - **Revenue** (sum of orders with payment status COMPLETED)
+  - **Pending Orders** (status PENDING_PAYMENT) → `/admin/orders?status=pending`
+  - **Active Shops** (shops with status ACTIVE) → `/admin/shops`
+  - **Open Tickets** (support tickets with status OPEN) → `/admin/support`
+- **Recent orders** — Last 5 orders with order number, customer name, total, status. Click an order to open order details from the Orders section.
 
-- The site supports **multiple languages** (e.g. English, 简体中文, 繁體中文, Deutsch, Français, 日本語, español, and others).
-- **Changing language:**
-  - **Desktop:** Use the **language selector** in the header (globe or language label). Pick a language from the dropdown; the interface updates and your choice is saved.
-  - **Mobile:** Use the language control on the homepage/header (e.g. globe icon) and select your language.
-- **Default language** can be set by:
-  1. Your **saved preferred language** (from the language selector).
-  2. Your **selected country** (e.g. Germany → German).
-  3. Your **browser language** if it matches a supported language.
-  4. **English** as final fallback.
+**Control:** Dashboard is read-only; use it to see key metrics and jump to Users, Orders, Products, Shops, or Support.
 
 ---
 
-## 3. Browsing & Shopping
+## 3. Users
 
-### Homepage
+**Path:** `/admin/users`
 
-- **Hero slider** — Promotional banners; click to go to linked pages or campaigns.
-- **Categories** — Shortcuts to main categories (e.g. Women, Men, Kids, Accessories). Click to open that category.
-- **Featured / new products** — Product carousels (e.g. “Best Deals”, “New Arrivals”). Use **View All** to see the full list.
-- **Search** — Use the search bar (or “Search Products” / “Search Store” buttons) to open the **search modal**.
+**What you control:**
 
-### Search
+- **List all users** with search (name/email), filters (Role: Admin, Manager, User; Status: Active, Suspended, Banned), and pagination.
+- **Add user** — “Add User” goes to `/admin/users/new` (if implemented) to create a user.
+- **Per-user actions** (dropdown on each row):
+  - **Edit user** — Change **Role** (USER, MANAGER, ADMIN), **Status** (ACTIVE, SUSPENDED, BANNED), **Can sell** (allow shop creation). Save to apply.
+  - **Login as user** — Impersonate that user: your session is replaced by theirs, and you are redirected to the store home. Use this to see the store as that user (e.g. for support or testing). To return to admin, log out and log in again with your admin account.
+  - **View shop** — If the user has a shop, open that shop’s admin page (`/admin/shops/[id]`).
+  - **Delete user** — Permanently delete the user (confirm in dialog). Use with care.
 
-- Click the **search field** or **Search** button in the header to open the search overlay.
-- Type your query. Results update as you type (products by name, etc.).
-- **Recent searches** may be shown; click one to run it again.
-- **Popular categories** may appear when the search is empty; click to browse.
-- Click a **product** in the results to go to its product page.
+**User detail page** (`/admin/users/[id]`):
 
-### Categories
+- View and edit **profile**: name, email, phone, role, status, balance, can sell.
+- View **shop** (if any): name, slug, status, level, balance, sales, rating, product count, order count.
+- View **recent orders** for that user.
+- **Update** saves changes to the user.
 
-- **Sidebar (desktop):** Left sidebar lists categories. Click a category to go to `/categories?slug=...` or the category page.
-- **Categories page** — Grid or list of categories; click one to see **products in that category**.
-- **Category product page** (`/categories/[slug]`):
-  - **Sort:** e.g. by price (low/high), popularity, rating.
-  - **Pagination:** Navigate through pages of products.
-  - Click a product card to open the **product detail** page.
+**Understanding:**
 
-### Products listing
-
-- **Products page** (`/products`) — Browse all (or filtered) products.
-- Each **product card** usually shows: image, name, price, compare price (if any), rating, and optional “Add to cart” or “View”.
-- Click the card to open the **product detail** page.
-
-### Product detail page
-
-- **Images** — Main image and often a gallery; you can change the selected image.
-- **Name, price, compare price** — A discount percentage may be shown if there is a compare price.
-- **Quantity** — Select quantity (e.g. 1–stock).
-- **Add to cart** — Adds the chosen quantity to your cart; you can continue shopping.
-- **Buy now** — Adds to cart and takes you to the **cart** page.
-- **Add to collection (favorites)** — Saves the product to your favorites (requires login). If not logged in, you are sent to login with a return URL to this product.
-- **Description / specifications / reviews** — Tabs or sections below for full details.
-- **Related products** — Links to similar items at the bottom.
-
-### Deals
-
-- **Deals** page (`/deals`) — Lists current deals or promotions. Use it like the products listing to find and open product pages.
-
-### Favorites (My Collection / Shop Collection)
-
-- **Favorites** are managed from **Account → Shop Collection** (or “My Collection” in the account stats).
-- From a product page, use the heart/collection button to add or remove.
-- Favorites are tied to your account and visible across devices when logged in.
+- **Role** — USER (store/seller only), MANAGER or ADMIN (admin panel access).
+- **Status** — ACTIVE (normal), SUSPENDED or BANNED (block access as needed).
+- **Can sell** — If enabled and they complete KYC, they can create a shop and sell.
 
 ---
 
-## 4. Cart & Checkout
+## 4. Products
 
-### Cart
+**Path:** `/admin/products`
 
-- **Opening the cart:** Click the **cart icon** in the header or go to `/cart`.
-- **Contents:** List of items with image, name, price, quantity, and optional remove button.
-- **Quantity:** Increase/decrease per item; changes update the total.
-- **Select items:** You can select which items to checkout (e.g. checkboxes or “Select all”). Only selected items are included in the checkout total.
-- **Subtotal** is shown for selected items.
-- **Empty cart:** If the cart is empty, you see a message and a link to **Start shopping** or **Products**.
+**What you control:**
 
-### Checkout (place order)
+- **List products** — Search by name or SKU; filter by category and status; pagination.
+- **Add product** — “Add Product” → `/admin/products/new` to create a product (name, slug, description, price, compare price, cost price, category, images, stock, status, featured).
+- **Edit product** — Open a product → `/admin/products/[id]` to edit the same fields and save.
+- **Product fields:** name, slug, description, price, compare price, cost price, category, images (upload), stock, status (e.g. DRAFT, PUBLISHED), featured. Products can belong to a **shop** (seller) or the main catalog.
 
-- From the cart, go to **Checkout** (e.g. “Proceed to checkout” or similar).
-- Checkout has two main steps: **Address** and **Payment**.
-
-#### Step 1: Address
-
-- If you have **saved addresses**, they are loaded. You can **choose one** (e.g. default or any other).
-- You can **edit** the form: full name, email, phone, address, city, state, zip, country, notes.
-- All required fields must be filled. Optionally **save** this address for future orders (if the site supports it in this step).
-
-#### Step 2: Payment
-
-- **Payment methods** typically include:
-  - **Account balance** — Use your ZALORA wallet balance (user balance and, if you are a seller, optionally shop balance).
-  - **Cryptocurrency** — Choose a crypto type (e.g. USDT) and use the displayed wallet address and amount. You send the exact amount to that address; the order is recorded when payment is confirmed.
-  - **Card** — If shown, fields for card number, name, expiry, CVV may appear (implementation may vary; card might be disabled in some setups).
-- **Totals:** Subtotal, shipping (e.g. free), tax (e.g. 10%), and **total** are displayed.
-- If using **balance**, ensure your balance is at least the total.
-- **Place order** — Click to submit. You may be redirected to an order confirmation or order history.
-
-### After placing an order
-
-- You can see the order in **Account → My Orders**.
-- Click the order to open **order details** (order number, status, items, total, address, payment info).
-- Order statuses (e.g. Payment pending, Waiting for delivery, Waiting for receipt, Completed, Refund/After-sales) are shown in account and in order detail.
+**Control:** You manage the full product catalog (main and seller products). Sellers may only manage their own shop products from the store seller area; admin can manage all.
 
 ---
 
-## 5. Your Account
+## 5. Categories
 
-Access **Account** from the header (your name or “Account”) or by going to `/account`. You must be logged in.
+**Path:** `/admin/categories`
 
-### Account overview
+**What you control:**
 
-- **Profile block:** Avatar, name, masked email, short ID. Link to **Edit profile**.
-- **Stats row:** My Collection (favorites count), Shop Collection, My Browse, **Account balance** (wallet).
-- **My Orders** strip: Shortcuts to order statuses (Payment pending, Waiting for delivery, etc.) and link to full **My Orders**.
-- **Menu list** — Links to all account sections (see below). Some items appear only if you are a seller or have a shop.
+- **List categories** — All categories with name, slug, product count, parent (if any), active, show on home.
+- **Add category** — Open “Add category” dialog: **Name**, **Slug**, **Description**, **Icon**, **Image** (upload), **Active**, **Show on home**. Save.
+- **Edit category** — Click a category to edit the same fields; upload a new image if needed.
+- **Delete category** — Remove category (consider product count and children first).
 
-### Profile
+**Understanding:**
 
-- **Account → Profile** (or “Edit profile” from the overview).
-- **Editable:** Full name, email, phone number. **Photo:** Upload a new avatar (rules: image file, often max 3 MB).
-- **Save** to apply. Success or error messages appear after submit.
-
-### My Orders
-
-- **Account → My Orders** (`/account/orders`).
-- List of orders with: order number, date, status, payment status, total, and link to **details**.
-- **Order details** (`/account/orders/[id]`): Full address, items, quantities, prices, total, and status. Use this to **track** your order.
-
-### Delivery addresses
-
-- **Account → Delivery address** (`/account/addresses`).
-- **List** of saved addresses. **Add** new or **Edit** / **Delete** existing.
-- **Fields:** Name, phone, country, state, city, address, postal code, and “Default address” checkbox.
-- Default address is pre-selected at checkout when you load saved addresses.
-
-### Favorites (Shop Collection / My Collection)
-
-- **Account → Shop Collection** (`/account/favorites`).
-- List of products you added from product pages. Open product or remove from favorites.
-
-### Wallet
-
-- **Account → Wallet management** (`/account/wallet`).
-- **Balance** — Your current account balance (used for checkout when you choose “balance”).
-- **Top up** — Add funds:
-  - **Top up** entry → choose method (e.g. USDT ERC-20, USDT TRC-20, ETH, BTC, Bank). You are shown the platform’s payment details; after you send the amount, the balance updates when the deposit is confirmed (may require admin approval).
-  - **Recharge record** — List of deposits (amount, currency, status, date).
-- **Withdraw** — Take funds out:
-  - **Withdraw** → choose method (e.g. USDT, ETH, BTC, Bank). Enter amount and withdrawal address (or bank details). Submit; withdrawals often need **admin approval** before the amount is sent.
-  - **Withdrawal record** — List of withdrawals (amount, status, date).
-- **Transaction history** on the wallet page combines recent deposits and withdrawals.
-
-### Notifications
-
-- **Account → Service Center** or **Notifications** (`/account/notifications`).
-- **Filters:** All, Unread, Orders, Payments, Promotions, System, Support.
-- **Actions:** Open a notification, **Mark as read**, **Mark all read**, or delete.
-- Notifications can also appear in the **header dropdown** (bell icon); click to see recent and a link to “View all”.
-
-### Billing records
-
-- **Account → Billing records** (`/account/billing`).
-- View billing or invoice history related to your account (exact content depends on implementation).
-
-### Login & payment password
-
-- **Account → Login password** or **Payment password** — Usually link to **Account → Password** (`/account/password`).
-- Change **login password** or set/change **payment password** (if the site uses it for sensitive actions).
-
-### Settings
-
-- **Account → Set up** (`/account/settings`).
-- **Account settings:** Notifications (e.g. email/push toggles), privacy options, and other preferences. Save after changes.
-
-### Service Center (Support)
-
-- **Account → Service Center** (`/account/support`).
-- Open **support tickets** or contact support (see [Support & Legal](#8-support--legal)).
-
-### Wholesale (sellers)
-
-- **Account → Wholesale management** (`/account/wholesale`).
-- Shown if your account has **seller** rights. Use for wholesale-related actions (content depends on configuration).
-
-### Download the app
-
-- **Account → Download the app** — Link or instructions to download the ZALORA app (if available).
+- **Active** — Inactive categories are hidden from the store front.
+- **Show on home** — Controls whether the category appears on the homepage.
+- **Parent** — Categories can have a parent for hierarchy (e.g. “Women” → “Dresses”).
 
 ---
 
-## 6. Becoming a Seller
+## 6. Orders
 
-To sell on ZALORA you need to **open a shop** and complete **KYC (identity verification)**. Until your shop is approved, some seller areas are locked or show “Approve shop to access”.
+**Path:** `/admin/orders`
 
-### Apply for a shop
+**What you control:**
 
-- **Account → Apply for shop** or go to **Seller → Create shop** (`/seller/create-shop`).
-- **Form:** Shop name, slug (URL-friendly name), description, logo, banner.
-- **KYC:** Contact name, ID number, invite code (if required), **ID card front**, **ID card back**, main business, detailed address.
-- **Uploads:** Logo and banner (e.g. images, max 5 MB). ID card images as required.
-- Submit the form. The shop is created in **pending** state; verification is reviewed by admin.
+- **List orders** — Filter by **Order status** (e.g. PENDING_PAYMENT, PAID, PROCESSING, SHIPPED, DELIVERED, COMPLETED, CANCELLED, REFUNDED), **Payment status** (PENDING, CONFIRMING, COMPLETED, FAILED, EXPIRED, REFUNDED), **Payment method**. Search by order number, customer name, or email.
+- **View order details** — Click an order to open a details panel: customer, shipping address, items (product, quantity, price), subtotal, shipping, tax, total, payment method (e.g. crypto, balance), payment address/memo if crypto, tracking number, admin notes, statuses, dates (created, paid, shipped, delivered).
+- **Approve payment** — For orders in **PENDING_PAYMENT** (e.g. crypto paid manually): click **Approve payment**. This marks the order as paid and moves it to processing. Only use after confirming payment was received.
+- **Update order** — Change **Order status**, **Payment status**, **Tracking number**, **Admin notes**. Save. Use this to reflect real-world state (e.g. shipped, delivered).
 
-### KYC verification status
+**Order statuses (typical flow):**
 
-- **Seller → Verification status** (`/seller/verification-status`).
-- Shows: **No application yet** — Create a shop first.
-- If you applied: **Pending** — Under review. **Approved** — You can access the seller dashboard and manage shop. **Rejected** — Message and reason; you can correct and reapply if allowed.
+- PENDING_PAYMENT → (after payment) PAID / PROCESSING → SHIPPED → DELIVERED → COMPLETED.  
+CANCELLED and REFUNDED are for cancelled or refunded orders.
 
-### Seller dashboard
-
-- **Seller → Seller Dashboard** (`/seller/dashboard`) — Available when your shop is **active** and KYC **approved**.
-- **Summary cards:** Total products, Active products, Total orders, Pending orders, Total revenue, Shop balance.
-- **Recent orders** — List with link to “View all” orders.
-- **Quick actions:** “Add new product”, “Manage shop”.
-- If you have **no shop yet**, the dashboard shows a prompt to **Create your shop**.
-
-### Shop details (manage shop)
-
-- **Seller → Shop details** (`/seller/shop`).
-- **Edit:** Name, slug, description, logo, banner, contact info. **Stats:** Followers, total sales, level (e.g. BRONZE, SILVER, GOLD, PLATINUM).
-- **Shop wallet** (if available from this page): Balance, top-up, withdraw, recharge record, withdrawal record — same idea as account wallet but for **shop** funds.
-
-### Product management
-
-- **Seller → Product management** (`/seller/products`).
-- **List** of your products. **Add new product** or **Edit** existing.
-- **Add from catalog** (if available) — Add products from a shared catalog to your shop.
-- **Product form:** Name, slug, description, price, compare price, cost price, category, images, stock, status (e.g. Draft, Published). Save to create or update.
-
-### Store orders (seller)
-
-- **Seller → Store orders** (`/seller/orders`).
-- Orders that contain **your shop’s** products. List with status, customer, total, date.
-- **Order details** (`/seller/orders/[id]`): Full order info, shipping address, items (yours and possibly others), and status. Update status (e.g. shipped) if the flow allows.
-
-### Shop wallet (seller)
-
-- **Seller → Shop** → **Wallet** (or Shop details → Wallet).
-- **Balance** — Shop earnings.
-- **Top up** — Add funds to the shop wallet (e.g. for refunds or fees).
-- **Withdraw** — Request withdrawal to your chosen method (e.g. USDT, bank). Often requires **admin approval**.
-- **Recharge record** / **Withdrawal record** — History of shop top-ups and withdrawals.
+**Control:** You have full visibility and the ability to approve payments and update status/notes/tracking. This is where you reconcile payments (especially crypto) and keep orders in sync with fulfillment.
 
 ---
 
-## 7. Visiting Shops
+## 7. Shops & KYC
 
-- **Shops** — You can browse **shops** by name or link (e.g. `/shops/[slug]`).
-- **Shop page:** Shop name, logo, banner, description, and **products** from that shop. Click a product to go to the product detail page.
-- From a **product** that belongs to a shop, you can often click the shop name to go to that shop’s page.
+**Path:** `/admin/shops`
 
----
+**What you control:**
 
-## 8. Support & Legal
+- **List shops** — Search; filter by status (e.g. PENDING, ACTIVE, SUSPENDED, CLOSED). See shop name, owner, status, level, balance, sales, product count, order count.
+- **Open a shop** — Click a shop → `/admin/shops/[id]`.
 
-### Contact
+**Shop detail page** (`/admin/shops/[id]`):
 
-- **Contact us** (`/contact`) — Form or instructions to send a message to support. Use for general questions, technical issues, or order help.
+- **Shop info:** name, slug, description, logo, banner, status, level, balance, total sales, rating, commission rate, member since, product count, order count, followers.
+- **Edit shop** — Change name, slug, description, status, level, balance, rating, commission rate, followers, total sales, order count, member since. Save.
+- **Owner** — Link to the user (owner) and their email.
+- **KYC / Verification:**
+  - If the shop has an associated **verification** (identity check): view status (PENDING, APPROVED, REJECTED), contact name, ID number, invite code, ID card front/back images, main business, detailed address, reviewed at, rejection reason.
+  - **Approve KYC** — Set verification status to APPROVED. The shop can then become ACTIVE and the seller gets full access to the seller dashboard.
+  - **Reject KYC** — Set status to REJECTED and provide a **rejection reason**. The seller sees this and can reapply after fixing issues.
+- **Products** — List of products in this shop; link to edit product in admin.
+- **Recent orders** — Orders that include this shop’s products.
 
-### About
+**Understanding:**
 
-- **About us** (`/about`) — Company or platform information.
-
-### Merchant agreement
-
-- **Merchant agreement** (`/merchant-agreement`) — Terms and conditions for sellers. Read before opening a shop.
-
-### Other links
-
-- **Join us** — Registration.
-- **Footer / sidebar** — Links to About, Contact, Merchant agreement, and possibly legal pages (e.g. Privacy, Terms). Check the footer on each page.
-
----
-
-## 9. Troubleshooting & FAQ
-
-### I can’t log in
-
-- Check email and password. Use **Forgot password?** if needed.
-- Ensure your account is **active** (not suspended). Contact support if access was working before and nothing changed on your side.
-
-### Cart is empty after adding products
-
-- Cart is stored in your browser (and possibly account when logged in). Clearing cookies or using another device/browser can show an empty cart until you add items again.
-- If you were not logged in and then logged in, some implementations merge cart; others do not. Try adding the product again.
-
-### I don’t see my order
-
-- Go to **Account → My Orders**. If it’s not there, the order may not have been placed (e.g. payment failed). Check your email for confirmation.
-- **Payment pending:** Complete payment (e.g. send crypto to the given address, or pay with balance/card). Until payment is confirmed, the order may stay in “Payment pending”.
-
-### How do I change my address for an order?
-
-- After placement, the shipping address usually cannot be edited. Cancel and reorder with the correct address if the order is still in an early status, or contact support.
-
-### Wallet: top-up not showing
-
-- Deposits (especially crypto) can take time to confirm. Check **Recharge record** for status (e.g. Pending, Completed).
-- If you used the wrong amount or address, contact support with transaction details.
-
-### Wallet: withdrawal not received
-
-- Withdrawals often require **admin approval**. Check **Withdrawal record** for status (e.g. Pending, Approved, Completed). If it is completed and you did not receive the funds, contact support with the withdrawal ID and method.
-
-### I applied for a shop but don’t see the seller dashboard
-
-- Ensure **KYC** is **Approved** and shop status is **Active**. Check **Seller → Verification status**.
-- If status is Pending, wait for review. If Rejected, follow the instructions to correct and reapply.
-
-### Language or country is wrong
-
-- Use the **language selector** in the header to set language; it is saved for next visits.
-- Country is set on the country selection page; clearing site data or using the selection again (if the site allows) can reset it.
-
-### Site is in maintenance
-
-- If you see a **maintenance** page, the platform is temporarily unavailable. Try again later.
-
-### Chat / assistant
-
-- A **chat or assistant** widget may appear (e.g. bottom-right). Use it for quick questions (e.g. “Track my order”, “Payment help”, “Refund policy”, “Shipping info”) or to contact support.
+- **Shop status** — PENDING (e.g. just created), ACTIVE (can sell after KYC approved), SUSPENDED, CLOSED. You control this; only ACTIVE shops sell on the store.
+- **KYC approval** is required before the seller can use the seller dashboard fully. You approve or reject from this page.
 
 ---
 
-## Quick reference — Main URLs
+## 8. Homepage (hero slides)
 
-| Section            | Typical URL                    |
-|--------------------|---------------------------------|
-| Home               | `/`                             |
-| Categories         | `/categories`, `/categories/[slug]` |
-| Products           | `/products`, `/products/[slug]` |
-| Cart               | `/cart`                         |
-| Checkout           | `/checkout`                     |
-| Deals              | `/deals`                        |
-| Login              | `/auth/login`                   |
-| Register           | `/auth/register`                |
-| Forgot password    | `/auth/forgot-password`         |
-| Country selection  | `/select-country`               |
-| Account            | `/account`                      |
-| Profile            | `/account/profile`              |
-| Orders             | `/account/orders`               |
-| Addresses          | `/account/addresses`            |
-| Favorites          | `/account/favorites`            |
-| Wallet             | `/account/wallet`               |
-| Notifications      | `/account/notifications`        |
-| Settings           | `/account/settings`             |
-| Support            | `/account/support`              |
-| Create shop        | `/seller/create-shop`           |
-| Verification       | `/seller/verification-status`   |
-| Seller dashboard   | `/seller/dashboard`             |
-| Shop details       | `/seller/shop`                  |
-| Seller products    | `/seller/products`              |
-| Seller orders      | `/seller/orders`                |
-| Shops              | `/shops/[slug]`                 |
-| Contact            | `/contact`                      |
-| About              | `/about`                        |
-| Merchant agreement | `/merchant-agreement`           |
+**Path:** `/admin/homepage`
+
+**What you control:**
+
+- **List hero slides** — Slides shown in the hero carousel on the store homepage. Each has title, subtitle, desktop image, mobile image, CTA text/link, sort order, active, optional start/end dates.
+- **Add slide** — “Add slide”: upload **desktop image** and optionally **mobile image**, set **title**, **subtitle**, **CTA text**, **CTA link**, **sort order**, **active**. Save.
+- **Edit slide** — Change any of the above; reorder or toggle active.
+- **Reorder slides** — Use reorder control (e.g. drag or reorder API) to change the order on the homepage.
+- **Delete slide** — Remove a slide.
+
+**Control:** You decide what appears in the main hero banner: images, copy, and links. This is the main visual control of the store homepage.
 
 ---
 
-*This manual reflects the ZALORA Fashion platform as of the last update. Some options (e.g. payment methods, KYC steps) may vary by region or configuration. For the latest terms and features, check the site and legal pages.*
+## 9. Coupons
+
+**Path:** `/admin/coupons`
+
+**Current state:** The Coupons page shows a “Coming soon” message. When implemented, you will create discount codes, set expiry and rules, and track usage. No actionable control yet.
+
+---
+
+## 10. Support tickets
+
+**Path:** `/admin/support`
+
+**What you control:**
+
+- **List tickets** — Filter by status (All, OPEN, IN_PROGRESS, RESOLVED). See ticket number, subject, status, priority, customer, last message, dates.
+- **Open a ticket** — Click a ticket → `/admin/support/[id]`.
+
+**Ticket detail** (`/admin/support/[id]`):
+
+- **Conversation** — All messages (customer and admin replies). You see who wrote each message and when.
+- **Reply** — Type your message and send. The customer sees it in their account support view.
+- **Change status** — Set status to OPEN, IN_PROGRESS, RESOLVED, or CLOSED.
+- **Change priority** — e.g. HIGH, MEDIUM, LOW.
+
+**Control:** You handle all customer support conversations, set status/priority, and resolve or close tickets. This is the central place for support.
+
+---
+
+## 11. Notifications
+
+**Path:** `/admin/notifications`
+
+**What you control:**
+
+- **List all notifications** — Notifications sent to users. Filter by All, Unread, or type (order, payment, promo, system, support). See recipient (user name/email), title, message, type, read state, date.
+- **Send notification** — “Send Notification”: choose **User** (recipient), enter **Title**, **Message**, **Type** (order, payment, promo, system, support), optional **Link**. Send. The user sees it in their account and in the header bell dropdown.
+- **Mark as read / Mark all read** — Update read state (for your own view).
+- **Delete** — Remove a notification from the list.
+
+**Understanding:**
+
+- Notifications are **one-way**: admin → user. Use them for order updates, promos, system announcements, or support-related messages.
+- **Type** is for filtering and display (icon/label). **Link** can deep-link the user to an order or page.
+
+---
+
+## 12. CMS Pages
+
+**Path:** `/admin/pages`
+
+**Current state:** The CMS Pages screen shows “Coming soon” for managing static pages (About, Terms, Privacy, etc.). No actionable control yet.
+
+---
+
+## 13. Crypto addresses
+
+**Path:** `/admin/crypto-addresses`
+
+**What you control:**
+
+- **List crypto addresses** — Wallet addresses used by the platform for receiving customer payments (e.g. checkout). Each has currency, address, network, label, QR code, active.
+- **Add address** — **Currency** (e.g. USDT, BTC, ETH), **Address**, **Network** (e.g. TRC-20, ERC-20), **Label**, optional **QR code URL**, **Active**. Save.
+- **Edit address** — Change any field or toggle active.
+- **Delete address** — Remove an address (only if not in use by pending orders).
+
+**Understanding:**
+
+- At **checkout**, customers can pay by crypto; they are shown the appropriate platform address (and optional memo). You must add and maintain these addresses here (and/or in Settings, depending on implementation). **Crypto Addresses** here are the central list used for payments; keep them correct and active.
+
+---
+
+## 14. Deposit approvals
+
+**Path:** `/admin/deposits`
+
+**What you control:**
+
+- **List deposit requests** — User/shop wallet top-up requests. Filter by status: **PENDING**, **APPROVED**, **REJECTED**.
+- **For each deposit:** user, currency, network, amount, proof URL (if user uploaded proof), status, created/reviewed date.
+- **Approve** — Mark as APPROVED. The user’s or shop’s balance is credited (backend applies the balance update). Only approve after verifying payment (e.g. check proof or blockchain).
+- **Reject** — Mark as REJECTED. The user sees the rejection; no balance is added.
+
+**Control:** Users and sellers top up their wallet from the store; you approve or reject each request. This prevents invalid or fraudulent balance credits.
+
+---
+
+## 15. Withdrawal approvals
+
+**Path:** `/admin/withdrawals`
+
+**What you control:**
+
+- **List withdrawal requests** — Users/sellers requesting to withdraw wallet balance. Filter by **PENDING**, **APPROVED**, **REJECTED**.
+- **For each withdrawal:** user, currency, network, destination address, amount, status, created/reviewed date.
+- **Approve** — Mark as APPROVED. Your backend/process then sends the funds to the given address. Only approve after verifying the request and having sufficient liquidity.
+- **Reject** — Mark as REJECTED. No funds are sent; the user sees the rejection.
+
+**Control:** You decide which withdrawals are paid out. This protects against fraud and ensures you only send money after checks.
+
+---
+
+## 16. Settings
+
+**Path:** `/admin/settings`
+
+**What you control:** All settings are stored in the database and affect the whole platform. **Save** at the bottom applies changes.
+
+**General:**
+
+- **Site name** — Used in browser tab and across the site.
+- **Logo URL** — Path or URL to the logo image.
+- **Site description** — e.g. tagline or meta description.
+- **Currency** — Default currency (e.g. USD).
+- **Maintenance mode** — When enabled, visitors see a maintenance page instead of the store. Use for deployments or emergencies.
+
+**Payments:**
+
+- **Crypto payments** — Enable/disable acceptance of crypto (e.g. USDT, BTC, ETH). If enabled, you can set wallet addresses here (and/or in Crypto Addresses).
+- **USDT TRC20/ERC20, BTC, ETH addresses** — Used for checkout when crypto is enabled.
+- **Cash on delivery** — Enable/disable COD.
+- **Bank transfer** — Enable/disable bank transfer.
+
+**Shipping & tax:**
+
+- **Default shipping fee** — Amount in your currency.
+- **Free shipping threshold** — Order amount above which shipping is free; 0 to disable.
+- **Tax rate (%)** — Percentage applied to orders; 0 to disable.
+
+**Features:**
+
+- **User selling** — When **on**, users can apply to become sellers and create shops (subject to KYC). When **off**, no new shops and seller features are effectively disabled.
+- **Shop levels that can upload own products** — Checkboxes for BRONZE, SILVER, GOLD, PLATINUM. Only selected levels can add their own products; others may only add from the main catalog (if your logic uses this). Leave all unchecked to disable own product upload.
+
+**Control:** Settings are the main lever for site-wide behavior: branding, payments, shipping, tax, and who can sell or upload products. Change with care and test after saving.
+
+---
+
+# Part B — Store, Shoppers & Sellers
+
+## 17. Store front (shoppers)
+
+- **Country & language** — First-time visitors may choose country; language can be set via the language selector and is stored. Affects UI language.
+- **Homepage** — Hero slides (you control in Admin → Homepage), categories, featured/new products. Search opens a modal; results link to product pages.
+- **Categories** — Sidebar and categories page; category product lists with sort and pagination.
+- **Product page** — Images, price, quantity, Add to cart, Buy now, Add to collection (favorites; requires login). Description, specs, reviews, related products.
+- **Cart** — View/edit quantity, select items, see subtotal. Checkout from cart.
+- **Checkout** — Step 1: shipping address (saved or new). Step 2: payment — **Balance** (user wallet), **Crypto** (platform addresses you configure), or **Card** (if enabled). Place order. Order appears in Account → My Orders.
+- **Account (logged-in)** — Profile, orders, addresses, favorites, wallet (top-up, withdraw, records), notifications, billing, password, settings, support. Wallet top-ups/withdrawals create requests you approve in Admin → Deposits / Withdrawals.
+
+---
+
+## 18. Sellers
+
+- **Apply for shop** — User with “Can sell” enabled goes to Create shop, fills shop + KYC form, uploads ID. Shop is PENDING; verification is PENDING.
+- **KYC** — You approve or reject in **Admin → Shops & KYC → [shop]**. Approved + shop ACTIVE → seller gets full seller dashboard.
+- **Seller dashboard** — Stats (products, orders, revenue, balance), recent orders, quick links to products and shop details.
+- **Shop details** — Edit shop info; shop wallet (balance, top-up, withdraw, records). Seller withdrawal requests appear in **Admin → Withdrawal approvals**.
+- **Products** — Sellers add/edit their products (or from catalog if allowed by level). You can override anything in **Admin → Products**.
+- **Orders** — Sellers see orders containing their items; they can update status. You have full control in **Admin → Orders**.
+
+---
+
+## 19. Quick reference — URLs
+
+| Area | URL |
+|------|-----|
+| **Admin** | |
+| Dashboard | `/admin` |
+| Users | `/admin/users`, `/admin/users/[id]` |
+| Products | `/admin/products`, `/admin/products/new`, `/admin/products/[id]` |
+| Categories | `/admin/categories` |
+| Orders | `/admin/orders` |
+| Shops & KYC | `/admin/shops`, `/admin/shops/[id]` |
+| Homepage | `/admin/homepage` |
+| Coupons | `/admin/coupons` |
+| Support | `/admin/support`, `/admin/support/[id]` |
+| Notifications | `/admin/notifications` |
+| CMS Pages | `/admin/pages` |
+| Crypto Addresses | `/admin/crypto-addresses` |
+| Deposit Approvals | `/admin/deposits` |
+| Withdrawal Approvals | `/admin/withdrawals` |
+| Settings | `/admin/settings` |
+| **Store** | |
+| Home | `/` |
+| Login / Register | `/auth/login`, `/auth/register` |
+| Categories / Products | `/categories`, `/categories/[slug]`, `/products`, `/products/[slug]` |
+| Cart / Checkout | `/cart`, `/checkout` |
+| Account | `/account`, `/account/orders`, `/account/wallet`, etc. |
+| Seller | `/seller/dashboard`, `/seller/shop`, `/seller/products`, `/seller/orders` |
+| Shops | `/shops/[slug]` |
+| Contact / About | `/contact`, `/about` |
+| Merchant agreement | `/merchant-agreement` |
+
+---
+
+*This manual reflects the ZALORA Fashion platform as of the last update. Coupons and CMS Pages are marked “coming soon”; all other admin sections described above are actionable. For deployment and environment (e.g. Netlify, Supabase), refer to your project docs.*
