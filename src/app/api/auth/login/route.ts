@@ -62,7 +62,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errorMessage }, { status: statusCode })
     }
 
-    return NextResponse.json({ success: true, user: result.user })
+    const res = NextResponse.json({ success: true, user: result.user })
+    if (result.token) {
+      res.cookies.set('auth-token', result.token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+      })
+    }
+    return res
   } catch (error) {
     console.error('[LOGIN] Error:', error)
     return NextResponse.json(

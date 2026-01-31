@@ -5,10 +5,11 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useUserStore } from '@/lib/store'
 
 /**
- * Used when the server didn't get the auth cookie (e.g. Netlify). We don't render
- * the protected page at all — we run a client-side session check. If /api/auth/me
- * returns the user, we set the user and router.refresh() so the layout re-runs
- * with cookies and can render the real page. If not, redirect to login.
+ * Used when the server didn't get the auth cookie (e.g. Netlify). We run a
+ * client-side session check. If /api/auth/me returns the user, we do a FULL
+ * page load to the current path so the next request sends cookies (Next.js
+ * router.refresh() RSC fetch often does not send cookies on Netlify). If not,
+ * redirect to login.
  */
 export function SessionCheckAndRefresh() {
   const router = useRouter()
@@ -29,7 +30,10 @@ export function SessionCheckAndRefresh() {
         if (res.ok && data.user) {
           setUser(data.user)
           setMessage('Loading...')
-          router.refresh()
+          // Full page load so the browser sends cookies; router.refresh() RSC
+          // fetch often does not include cookies on Netlify, so we'd stay stuck.
+          const target = pathname && pathname.startsWith('/') ? pathname : '/account'
+          window.location.href = target
           return
         }
 

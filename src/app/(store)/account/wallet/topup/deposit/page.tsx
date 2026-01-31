@@ -11,7 +11,7 @@ export default async function DepositPage({
   searchParams: Promise<{ currency?: string }>
 }) {
   const currentUser = await getCurrentUser()
-  if (!currentUser) redirect('/auth/login')
+  if (!currentUser) return null
 
   const { currency: currencyParam } = await searchParams
   const currency = (currencyParam || '').toUpperCase().trim()

@@ -279,22 +279,7 @@ export async function login(email: string, password: string) {
       role: user.role as UserRole,
     })
 
-    // Set cookie
-    try {
-      const cookieStore = await cookies()
-      cookieStore.set('auth-token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-        path: '/',
-      })
-    } catch (error) {
-      console.error('Error setting cookie:', error)
-      return { success: false, error: 'Failed to set authentication cookie' }
-    }
-
-    // Create session record
+    // Create session record (cookie is set by the API route on the response)
     await supabaseAdmin
       .from('sessions')
       .insert({
@@ -303,14 +288,15 @@ export async function login(email: string, password: string) {
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       })
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         role: user.role as UserRole,
-      }
+      },
+      token,
     }
   } catch (error) {
     console.error('Login function error:', error)
@@ -349,26 +335,18 @@ export async function loginAsUser(adminId: string, targetUserId: string) {
     impersonatedBy: adminId,
   })
 
-  const cookieStore = await cookies()
-  cookieStore.set('auth-token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 2, // 2 hours for impersonation
-    path: '/',
-  })
-
-  return { 
-    success: true, 
+  return {
+    success: true,
     user: targetUser,
+    token,
   }
 }
 
 export async function logout() {
   const session = await getSession()
-  
+
   if (session) {
-    // If impersonating, return to admin
+    // If impersonating, return to admin (API route will set cookie on response)
     if (session.impersonatedBy) {
       const { data: admin } = await supabaseAdmin
         .from('users')
@@ -382,17 +360,7 @@ export async function logout() {
           email: admin.email,
           role: admin.role as UserRole,
         })
-
-        const cookieStore = await cookies()
-        cookieStore.set('auth-token', token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 7,
-          path: '/',
-        })
-
-        return { success: true, returnedToAdmin: true }
+        return { success: true, returnedToAdmin: true, token }
       }
     }
 
@@ -402,15 +370,6 @@ export async function logout() {
       .delete()
       .eq('userId', session.userId)
   }
-
-  const cookieStore = await cookies()
-  cookieStore.set('auth-token', '', {
-    path: '/',
-    maxAge: 0,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-  })
 
   return { success: true }
 }
@@ -461,23 +420,14 @@ export async function register(data: {
       }
     }
 
-    // Auto login after registration
+    // Auto login after registration (API route will set cookie on response)
     const token = await createToken({
       userId: user.id,
       email: user.email,
       role: user.role as UserRole,
     })
 
-    const cookieStore = await cookies()
-    cookieStore.set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
-    })
-
-    return { success: true, user }
+    return { success: true, user, token }
   } catch (error) {
     console.error('[REGISTER] Unexpected error:', error)
     return { 

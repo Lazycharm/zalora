@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { WholesaleClient } from './wholesale-client'
@@ -98,9 +97,7 @@ export default async function WholesalePage({
 }) {
   const user = await getCurrentUser()
 
-  if (!user) {
-    redirect('/auth/login')
-  }
+  if (!user) return null
 
   const data = await getWholesaleData(user.id, searchParams)
   return <WholesaleClient {...data} user={user} searchParams={searchParams} />

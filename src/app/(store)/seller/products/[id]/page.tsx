@@ -124,9 +124,7 @@ export default async function SellerProductPage({
 }) {
   const currentUser = await getCurrentUser()
 
-  if (!currentUser) {
-    redirect('/auth/login')
-  }
+  if (!currentUser) return null
 
   const { shop } = await getSellerShopAccess(currentUser.id)
   if (!shop) redirect('/seller/create-shop')

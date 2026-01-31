@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { RechargeMethodsClient } from './recharge-methods-client'
@@ -7,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function TopUpPage() {
   const currentUser = await getCurrentUser()
-  if (!currentUser) redirect('/auth/login')
+  if (!currentUser) return null
 
   const { data: addresses } = await supabaseAdmin
     .from('crypto_addresses')

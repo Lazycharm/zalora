@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export default async function CreateShopPage() {
   // Auth is enforced by (store)/seller/layout.tsx; redirect param preserved for post-login return
   const currentUser = await getCurrentUser()
-  if (!currentUser) redirect('/auth/login?redirect=' + encodeURIComponent('/seller/create-shop'))
+  if (!currentUser) return null
 
   // Check if user already has a shop (any user can apply; no canSell required)
   const { data: user } = await supabaseAdmin

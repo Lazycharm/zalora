@@ -11,7 +11,7 @@ export default async function SellerShopDepositPage({
   searchParams: Promise<{ currency?: string }>
 }) {
   const user = await getCurrentUser()
-  if (!user) redirect('/auth/login')
+  if (!user) return null
   const { shop } = await getSellerShopAccess(user.id)
   if (!shop) redirect('/seller/create-shop')
 

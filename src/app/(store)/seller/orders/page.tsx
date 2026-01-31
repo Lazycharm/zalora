@@ -159,9 +159,7 @@ export default async function SellerOrdersPage({
 }) {
   const currentUser = await getCurrentUser()
 
-  if (!currentUser) {
-    redirect('/auth/login')
-  }
+  if (!currentUser) return null
 
   if (!currentUser.canSell) {
     redirect('/account')

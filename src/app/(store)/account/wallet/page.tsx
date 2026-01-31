@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { WalletClient } from './wallet-client'
@@ -7,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function WalletPage() {
   const currentUser = await getCurrentUser()
-  if (!currentUser) redirect('/auth/login')
+  if (!currentUser) return null
 
   const { data: user } = await supabaseAdmin
     .from('users')

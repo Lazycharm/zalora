@@ -31,6 +31,7 @@ export function CheckoutClient() {
   const user = useUserStore((state) => state.user)
   const setUser = useUserStore((state) => state.setUser)
 
+  const [authChecked, setAuthChecked] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState<'address' | 'payment'>('address')
 
@@ -62,19 +63,24 @@ export function CheckoutClient() {
     notes: '',
   })
 
-  // Refetch user on checkout so account + shop balance are up to date for payment step
+  // Auth check: redirect to login if not authenticated (checkout is protected client-side)
   useEffect(() => {
-    const refreshUser = async () => {
+    const checkAuth = async () => {
       try {
         const res = await fetch('/api/auth/me', { credentials: 'include' })
         const data = await res.json()
-        if (res.ok && data.user) setUser(data.user)
+        if (res.ok && data.user) {
+          setUser(data.user)
+          setAuthChecked(true)
+          return
+        }
+        router.replace('/auth/login?redirect=' + encodeURIComponent('/checkout'))
       } catch {
-        // keep existing user on error
+        router.replace('/auth/login?redirect=' + encodeURIComponent('/checkout'))
       }
     }
-    refreshUser()
-  }, [setUser])
+    checkAuth()
+  }, [setUser, router])
 
   // Fetch saved addresses when on address step and apply default once
   useEffect(() => {
@@ -192,6 +198,14 @@ export function CheckoutClient() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     toast.success('Address copied to clipboard!')
+  }
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-sm text-muted-foreground">Checking session...</p>
+      </div>
+    )
   }
 
   if (items.length === 0) {

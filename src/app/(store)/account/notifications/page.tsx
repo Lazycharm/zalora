@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { UserNotificationsClient } from './notifications-client'
@@ -31,9 +30,7 @@ async function getNotifications(userId: string) {
 export default async function UserNotificationsPage() {
   const currentUser = await getCurrentUser()
 
-  if (!currentUser) {
-    redirect('/auth/login')
-  }
+  if (!currentUser) return null
 
   const data = await getNotifications(currentUser.id)
 

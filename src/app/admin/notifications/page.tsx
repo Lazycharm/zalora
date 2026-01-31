@@ -44,9 +44,7 @@ async function getNotifications() {
 export default async function AdminNotificationsPage() {
   const currentUser = await getCurrentUser()
 
-  if (!currentUser) {
-    redirect('/auth/login')
-  }
+  if (!currentUser) return null
 
   if (currentUser.role !== 'ADMIN' && currentUser.role !== 'MANAGER') {
     redirect('/')

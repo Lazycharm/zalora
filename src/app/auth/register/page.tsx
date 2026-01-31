@@ -47,6 +47,7 @@ export default function RegisterPage() {
           email: formData.email,
           password: formData.password,
         }),
+        credentials: 'include',
       })
 
       const data = await res.json()

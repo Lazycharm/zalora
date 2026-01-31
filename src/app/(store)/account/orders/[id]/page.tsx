@@ -1,4 +1,4 @@
-import { redirect, notFound } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { OrderDetailsClient } from './order-details-client'
@@ -54,9 +54,7 @@ export default async function OrderDetailPage({
 }) {
   const user = await getCurrentUser()
 
-  if (!user) {
-    redirect('/auth/login')
-  }
+  if (!user) return null
 
   const order = await getOrder(params.id, user.id)
 

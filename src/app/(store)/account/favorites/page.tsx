@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { FavoritesClient } from './favorites-client'
@@ -62,9 +61,7 @@ async function getUserFavorites(userId: string) {
 export default async function FavoritesPage() {
   const user = await getCurrentUser()
 
-  if (!user) {
-    redirect('/auth/login')
-  }
+  if (!user) return null
 
   const favorites = await getUserFavorites(user.id)
 

@@ -143,9 +143,7 @@ async function getShopStats(shopId: string, shop: { followers?: number; totalSal
 export default async function ShopDetailsPage() {
   const currentUser = await getCurrentUser()
 
-  if (!currentUser) {
-    redirect('/auth/login')
-  }
+  if (!currentUser) return null
 
   if (!currentUser.canSell) {
     redirect('/account')

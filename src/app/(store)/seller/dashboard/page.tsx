@@ -133,9 +133,7 @@ async function getSellerStats(userId: string, shopId: string | null) {
 export default async function SellerDashboardPage() {
   const currentUser = await getCurrentUser()
 
-  if (!currentUser) {
-    redirect('/auth/login')
-  }
+  if (!currentUser) return null
 
   const { shop, canAccessShop } = await getSellerShopAccess(currentUser.id)
 

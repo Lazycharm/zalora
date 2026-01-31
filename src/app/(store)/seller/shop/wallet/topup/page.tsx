@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function SellerShopTopUpPage() {
   const user = await getCurrentUser()
-  if (!user) redirect('/auth/login')
+  if (!user) return null
   const { shop } = await getSellerShopAccess(user.id)
   if (!shop) redirect('/seller/create-shop')
 

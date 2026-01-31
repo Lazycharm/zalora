@@ -31,7 +31,7 @@ export function AdminHeader({ user }: { user: User }) {
 
   const handleLogout = async () => {
     try {
-      const res = await fetch('/api/auth/logout', { method: 'POST' })
+      const res = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
       const data = await res.json()
       
       if (data.returnedToAdmin) {

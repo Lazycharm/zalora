@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { AccountClient } from './account-client'
@@ -82,16 +81,10 @@ async function getAccountData(userId: string) {
 
 export default async function AccountPage() {
   const currentUser = await getCurrentUser()
-
-  if (!currentUser) {
-    redirect('/auth/login')
-  }
+  if (!currentUser) return null
 
   const data = await getAccountData(currentUser.id)
-  
-  if (!data.user) {
-    redirect('/auth/login')
-  }
+  if (!data.user) return null
 
   return <AccountClient user={data.user} stats={data.stats} />
 }

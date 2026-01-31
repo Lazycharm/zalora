@@ -41,7 +41,7 @@ async function getVerificationData(userId: string) {
 
 export default async function VerificationStatusPage() {
   const currentUser = await getCurrentUser()
-  if (!currentUser) redirect('/auth/login')
+  if (!currentUser) return null
 
   const data = await getVerificationData(currentUser.id)
   return <VerificationStatusClient {...data} />

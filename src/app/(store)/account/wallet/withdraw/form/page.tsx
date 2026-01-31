@@ -19,7 +19,7 @@ export default async function WithdrawFormPage({
   searchParams: Promise<{ method?: string }>
 }) {
   const currentUser = await getCurrentUser()
-  if (!currentUser) redirect('/auth/login')
+  if (!currentUser) return null
 
   const { method: methodId } = await searchParams
   const method = methodId ? METHOD_MAP[methodId.toLowerCase()] : null
