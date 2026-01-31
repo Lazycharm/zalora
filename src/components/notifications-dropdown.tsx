@@ -66,6 +66,8 @@ export function NotificationsDropdown({ variant = 'user' }: NotificationsDropdow
         setNotifications(data.notifications || [])
         setUnreadCount(data.unreadCount || 0)
       }
+      // 401 is expected when the server fails to read the session (e.g. serverless cold start).
+      // Do not treat as logout; AuthSync no longer clears user on failed /api/auth/me.
     } catch (error) {
       console.error('Error fetching notifications:', error)
     }
