@@ -21,27 +21,27 @@ async function getHomeData() {
         .from('products')
         .select(`
           *,
-          images:product_images!inner (
-            url
+          images:product_images (
+            url,
+            isPrimary
           )
         `)
         .eq('isFeatured', true)
         .eq('status', 'PUBLISHED')
-        .eq('images.isPrimary', true)
         .order('createdAt', { ascending: false })
-        .limit(4),
+        .limit(8),
       supabaseAdmin
         .from('products')
         .select(`
           *,
-          images:product_images!inner (
-            url
+          images:product_images (
+            url,
+            isPrimary
           )
         `)
         .eq('status', 'PUBLISHED')
-        .eq('images.isPrimary', true)
         .order('createdAt', { ascending: false })
-        .limit(4),
+        .limit(8),
       supabaseAdmin
         .from('categories')
         .select('*')
@@ -58,15 +58,20 @@ async function getHomeData() {
         .limit(5),
     ])
 
-    const featuredProducts = (featuredProductsResult.data || []).map((p: any) => ({
-      ...p,
-      images: p.images || [],
-    }))
-
-    const newArrivals = (newArrivalsResult.data || []).map((p: any) => ({
-      ...p,
-      images: p.images || [],
-    }))
+    // Map products to include a single image URL for display (primary or first)
+    const mapProduct = (p: any) => {
+      const images = p.images || []
+      const primary = images.find((img: any) => img.isPrimary) || images[0]
+      const image = primary?.url || '/images/logo.png'
+      return {
+        ...p,
+        images,
+        image,
+        reviews: p.totalReviews ?? 0,
+      }
+    }
+    const featuredProducts = (featuredProductsResult.data || []).map(mapProduct).slice(0, 4)
+    const newArrivals = (newArrivalsResult.data || []).map(mapProduct).slice(0, 4)
 
     return {
       featuredProducts,
@@ -107,20 +112,22 @@ export default async function HomePage() {
     {
       id: '1',
       name: 'Nike Air Zoom Pegasus 39 Running Shoe',
+      slug: 'nike-air-zoom',
       price: 120,
       comparePrice: 160,
       rating: 4.8,
       reviews: 124,
-      image: '/placeholder-product.jpg',
+      image: '/images/logo.png',
     },
     {
       id: '2',
       name: 'Adidas Ultraboost 22 Running Shoe',
+      slug: 'adidas-ultraboost',
       price: 180,
       comparePrice: 220,
       rating: 4.9,
       reviews: 89,
-      image: '/placeholder-product.jpg',
+      image: '/images/logo.png',
     },
   ]
 

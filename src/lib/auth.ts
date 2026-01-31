@@ -371,8 +371,14 @@ export async function logout() {
   }
 
   const cookieStore = await cookies()
-  cookieStore.delete('auth-token')
-  
+  cookieStore.set('auth-token', '', {
+    path: '/',
+    maxAge: 0,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+  })
+
   return { success: true }
 }
 

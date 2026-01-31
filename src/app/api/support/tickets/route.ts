@@ -143,16 +143,14 @@ export async function GET(req: NextRequest) {
       throw error
     }
 
-    // Format tickets - get latest message for each
+    // Format tickets - include all messages for list (client can show latest), sorted by createdAt desc for latest first
     const formattedTickets = (tickets || []).map((ticket: any) => {
-      const messages = ticket.messages || []
-      const latestMessage = messages.length > 0 
-        ? messages.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
-        : null
-
+      const messages = (ticket.messages || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
       return {
         ...ticket,
-        messages: latestMessage ? [latestMessage] : [],
+        messages,
       }
     })
 

@@ -41,7 +41,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // If no token, redirect to login
+  // If no token, redirect to login (don't clear cookie - user might have different domain/subdomain)
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
@@ -54,9 +54,8 @@ export async function middleware(request: NextRequest) {
     
     // Check if token is expired
     if (payload.exp && payload.exp < Date.now() / 1000) {
-      // Token expired, redirect to login
       const response = NextResponse.redirect(new URL('/auth/login', request.url))
-      response.cookies.delete('auth-token')
+      response.cookies.set('auth-token', '', { path: '/', maxAge: 0 })
       return response
     }
     
@@ -76,15 +75,14 @@ export async function middleware(request: NextRequest) {
     )
     
     if (isExpired) {
-      // Token expired, redirect to login and delete cookie
       const response = NextResponse.redirect(new URL('/auth/login', request.url))
-      response.cookies.delete('auth-token')
+      response.cookies.set('auth-token', '', { path: '/', maxAge: 0 })
       return response
     }
-    
-    // For other errors (malformed token, etc.), also redirect but delete cookie
+
+    // For other errors (malformed token, wrong secret, etc.), redirect and clear cookie
     const response = NextResponse.redirect(new URL('/auth/login', request.url))
-    response.cookies.delete('auth-token')
+    response.cookies.set('auth-token', '', { path: '/', maxAge: 0 })
     return response
   }
 }
